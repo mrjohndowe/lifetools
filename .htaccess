@@ -1,0 +1,6 @@
+Options -Indexes
+DirectoryIndex index.php
+SetEnv LIFETOOLS_APACHE_GUARD 1
+<FilesMatch "(^\.|^(lifetools\.config\.json|composer\.(json|lock)|router\.php)$)">
+    Require all denied
+</FilesMatch>

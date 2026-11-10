@@ -1,0 +1,20 @@
+# Security and recovery
+
+Use fictional records in demos and testing. The vault has no card security code field. Application login passwords use Argon2id where available and bcrypt cost 12 otherwise. Login and reveal are rate-limited. All mutations require a session CSRF token. Account credentials and vault values are separate. Record ownership is checked for views, links, writes, search, files, exports and reveals. Administrators manage accounts and the installation and have access to installation-wide backup operations. Their ordinary workspace views remain owner-scoped.
+
+## Encryption scope
+
+- **Fields.** Vault secrets, private notes, journal text, intimacy details and questionnaire responses, and attachment bytes use AES-256-GCM with a random nonce. The additional authenticated data binds owner, kind, record ID and field. MySQL receives the same ciphertext. Vault reveals require the application password and expire after 30 seconds. Clipboard clearing depends on browser permission.
+- **Database files.** Standard SQLite and MariaDB storage remains inspectable by an operating-system or database administrator. Metadata such as record titles, dates, links, some contact details and last-four card digits remains visible. Use OS storage encryption and database access controls where needed. The app does not maintain a plaintext index of confidential journal text.
+- **Backups.** Snapshots and MySQL dumps preserve field encryption. Backup folders are protected by filesystem permissions and HTTP denial. They are not separately encrypted as whole archives. Store copies on encrypted media. Treat backup operators as trusted.
+- **Keys.** A generated 32-byte base64 key is displayed during onboarding. The installer stores its copy, session secret and any mirror password outside the web root, using the platform's private application directory or **LIFETOOLS_KEY_DIR**. The config references those files. Keep a separate offline copy of the key and protected copies of configuration and **storage/installation.json**. Never add keys, config, database files or backups to Git. Linux files are created owner-only where supported. On Windows, use ACLs restricting the directory to the Apache/worker account and trusted administrators.
+
+Avoid putting private data in record titles, tags or ordinary metadata. Revealed fields and authorized journal content appear in the browser during use. The application uses local assets and sends no analytics. Use HTTPS when accessing the planner across a LAN. The local setup wizard accepts loopback requests only. Keep MySQL bound to an appropriate private address and use a dedicated least-privilege account. 
+
+## Recovery
+
+For a completed installation with missing or invalid configuration, restore the original **lifetools.config.json** and referenced secret files, or recreate the references from the separately retained key and configuration. Preserve **storage/installation.json**. Onboarding stays locked. If the SQLite file is missing, restore it from the snapshot using the documented CLI restore command. A verified MySQL logical dump can rebuild SQLite via **--from-mirror** when the snapshot is unavailable. Use the dump manifest and matching encryption key. Settings can initiate a restore when a working installation can still authenticate you. CLI restore is an operating-system administrator action.
+
+For an interrupted first-time setup with no committed administrator, revisit localhost onboarding. Re-enter credentials and the encryption key. If the database contains a committed installation fingerprint, restore the matching configuration and key instead. Retain the installation marker before any update or migration.
+
+Changing the session secret invalidates existing sessions. Changing the encryption key directly makes ciphertext unreadable. LifeTools does not ship an in-place encryption key rotation tool. Keep the original key available for recovery of existing archives. Losing that key can permanently lose confidential fields.

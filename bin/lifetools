@@ -1,0 +1,193 @@
+#!/usr/bin/env php
+<?php
+declare(strict_types=1);
+
+if (PHP_SAPI !== 'cli') {
+    http_response_code(403);
+    exit;
+}
+require dirname(__DIR__).'/app/bootstrap.php';
+
+function cliPrint(array $value): void
+{
+    echo json_encode($value,JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_THROW_ON_ERROR).PHP_EOL;
+}
+
+function cliServe(int $port): int
+{
+    for (; $port <= 65535; $port++) {
+        $socket = @stream_socket_server("tcp://127.0.0.1:$port");
+        if ($socket !== false) {
+            fclose($socket);
+            break;
+        }
+    }
+    if ($port > 65535) {
+        throw new Problem('No free local port. Choose a lower starting port.');
+    }
+    echo "Open http://127.0.0.1:$port/ in your browser.".PHP_EOL;
+    chdir(LT_ROOT);
+    passthru(escapeshellarg(PHP_BINARY)." -S 127.0.0.1:$port router.php",$code);
+    return $code;
+}
+
+function cliOwner(Store $store,?string $login = null): array
+{
+    $row = $login ? $store->user($login) : $store->run(
+        "SELECT * FROM records WHERE kind='users' AND deleted_at IS NULL AND json_extract(payload,'$.role')='admin' ORDER BY created_at,id LIMIT 1")->fetch();
+    if (!$row) {
+        throw new Problem('The selected application user does not exist.');
+    }
+    return $row;
+}
+
+function cliMain(array $argv): int
+{
+    $command = $argv[1] ?? 'help';
+    $flags = $args = [];
+    for ($i=2;$i<count($argv);$i++) {
+        $arg = $argv[$i];
+        if (!str_starts_with($arg,'--')) {
+            $args[] = $arg;
+            continue;
+        }
+        [$name,$value] = array_pad(explode('=',substr($arg,2),2),2,null);
+        if (in_array($name,['repair','from-mirror','force'],true)) {
+            $flags[$name] = true;
+        } elseif (isset(Config::FLAGS[$name]) || in_array($name,['config','limit','user','year'],true)) {
+            $value ??= $argv[++$i] ?? null;
+            if ($value === null || str_starts_with($value,'--')) {
+                throw new Problem("Supply a value for --$name.");
+            }
+            $flags[$name] = $value;
+        } else {
+            throw new Problem('Unknown option. Run php bin/lifetools help.');
+        }
+    }
+    if ($command === 'help') {
+        echo <<<'HELP'
+LifeTools commands
+  install                       Start the localhost setup server
+  start / dev                   Run the local server on the next available port
+  config:check / config:show     Check configuration or print redacted settings
+  db:migrate                     Apply SQLite and configured MySQL migrations
+  db:seed [--user LOGIN] [--year YYYY]
+  db:verify [--repair]           Compare hashes and row counts, optionally queue repair
+  sync:drain [--limit 1000] [--force]
+  db:backup                      Create a protected snapshot and optional mirror dump
+  db:restore ID [--from-mirror] [--force]
+  db:reset                       Run a clean disposable development database
+  test                           Run isolated tests in the configured mode
+  release                        Build the installable LifeTools ZIP
+Use --config PATH and documented config overrides with any configured command.
+HELP;
+        echo PHP_EOL;
+        return 0;
+    }
+    if ($command === 'release') {
+        require LT_ROOT.'/app/Release.php';
+        cliPrint(Release::build());
+        return 0;
+    }
+    Install::requirements();
+    $result = Config::detect($flags);
+    $state = Install::state($result);
+    if ($command === 'config:check' || $command === 'config:show') {
+        $report = Config::public($result) + ['phase'=>$state['phase']];
+        if ($command === 'config:check') {
+            unset($report['config']);
+        }
+        cliPrint($report);
+        return match ($result['status']) {'OK'=>0,'INVALID'=>1,default=>2};
+    }
+    if ($command === 'test' || $command === 'db:reset') {
+        if ($result['status'] === 'INVALID') {
+            throw new Problem('Configuration INVALID at '.$result['path'].'. '.$result['error']);
+        }
+        require LT_ROOT.'/tests/suite.php';
+        return Tests::run($command === 'test' ? ($result['config'] ?? null) : null);
+    }
+    if (in_array($command,['start','dev','install'],true)) {
+        if ($result['status'] === 'INVALID' || $state['phase'] === 'recovery') {
+            throw new Problem('Configuration '.$result['status'].' at '.$result['path'].'. ' .
+                ($result['error'] ?? '') . ' See SECURITY.md for recovery.');
+        }
+        if ($command !== 'install' && $result['status'] === 'MISSING' && !stream_isatty(STDIN)) {
+            throw new Problem('Configuration MISSING. Run php bin/lifetools install.');
+        }
+        if ($state['phase'] === 'configured') {
+            Install::boot($result);
+        }
+        if ($result['status'] === 'OK') {
+            putenv('LIFETOOLS_CONFIG='.$result['path']);
+        }
+        foreach (Config::FLAGS as $flag=>$variable) {
+            if (isset($flags[$flag])) {
+                putenv($variable.'='.$flags[$flag]);
+            }
+        }
+        $port = filter_var($result['config']['port'] ?? $flags['port'] ?? Config::env('PORT') ?? 3000,FILTER_VALIDATE_INT,
+            ['options'=>['min_range'=>1,'max_range'=>65535]]);
+        if ($port === false) {
+            throw new Problem('PORT must be an integer from 1 to 65535.');
+        }
+        return cliServe($port);
+    }
+    if ($result['status'] !== 'OK') {
+        throw new Problem('Configuration '.$result['status'].' at '.$result['path'].'. '.($result['error'] ?? '').
+            ($state['phase'] === 'recovery' ? ' Restore the original configuration as described in SECURITY.md.' : ''));
+    }
+    if ($command === 'db:restore') {
+        if (empty($flags['force'])) {
+            throw new Problem('Stop Apache and the sync worker, then pass --force to confirm replacement.');
+        }
+        if ($state['phase'] !== 'configured') {
+            throw new Problem('Restore the original installation marker and config first. See SECURITY.md.');
+        }
+        $config = $result['config'];
+        $store = new Store($config,!is_file($config['path']));
+        $store->migrate();
+        cliPrint(Maintenance::restore($store,$args[0] ?? '',!empty($flags['from-mirror'])));
+        return 0;
+    }
+    $store = Install::boot($result);
+    $mirror = new Mirror($store);
+    switch ($command) {
+        case 'db:migrate':
+            $store->migrate();
+            if ($store->config['mode'] === 'dual') {
+                $mirror->locked(static fn()=>null);
+            }
+            cliPrint(['schemaVersion'=>Store::VERSION]);
+            return 0;
+        case 'db:seed':
+            $user = cliOwner($store,$flags['user'] ?? null);
+            $year = isset($flags['year']) ? filter_var($flags['year'],FILTER_VALIDATE_INT,
+                ['options'=>['min_range'=>2000,'max_range'=>9997]]) : null;
+            if ($year === false) {
+                throw new Problem('Seed year must be between 2000 and 9997.');
+            }
+            cliPrint(['seedYear'=>Maintenance::seed($store,$user['id'],Store::payload($user),$year),'login'=>$user['title']]);
+            return 0;
+        case 'db:verify':
+            $verified = $mirror->verify(!empty($flags['repair']));
+            cliPrint($verified);
+            return $verified['ok'] ? 0 : 1;
+        case 'sync:drain':
+            cliPrint(['mirrored'=>$mirror->drain((int)($flags['limit'] ?? 1000),!empty($flags['force']))]+$mirror->status());
+            return 0;
+        case 'db:backup':
+            cliPrint(Maintenance::backup($store,cliOwner($store)['id']));
+            return 0;
+        default:
+            throw new Problem('Unknown command. Run php bin/lifetools help.');
+    }
+}
+
+try {
+    exit(cliMain($argv));
+} catch (Throwable $error) {
+    fwrite(STDERR,($error instanceof Problem ? $error->getMessage() : 'LifeTools could not complete the command.') . PHP_EOL);
+    exit(1);
+}
+

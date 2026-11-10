@@ -1,0 +1,14 @@
+services:
+  mirror:
+    image: mysql:8.4
+    environment:
+      MYSQL_RANDOM_ROOT_PASSWORD: "yes"
+      MYSQL_DATABASE: lifetools
+      MYSQL_USER: lifetools
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD:?Set a mirror password}
+    ports:
+      - "127.0.0.1:${MYSQL_PORT:-3306}:3306"
+    volumes:
+      - mirror-data:/var/lib/mysql
+volumes:
+  mirror-data:

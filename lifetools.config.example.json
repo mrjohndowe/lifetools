@@ -1,0 +1,22 @@
+{
+  "version": 1,
+  "dbMode": "sqlite",
+  "sqlitePath": "./data/lifetools.sqlite",
+  "mysql": {
+    "host": "127.0.0.1",
+    "port": 3306,
+    "database": "lifetools",
+    "user": "lifetools",
+    "password": "env:MYSQL_PASSWORD"
+  },
+  "app": {
+    "encryptionKey": "env:APP_ENCRYPTION_KEY",
+    "sessionSecret": "env:SESSION_SECRET",
+    "port": 3000,
+    "timeZone": "UTC",
+    "theme": "system",
+    "name": "LifeTools",
+    "currency": "USD",
+    "dateFormat": "Y-m-d"
+  }
+}

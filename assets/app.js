@@ -162,7 +162,58 @@ if (setup) {
     render();
 }
 
+function bindStarRating(field) {
+    const select = field.querySelector('select');
+    const scores = [...select.options].map(option => option.value).filter(Boolean);
+    const total = scores.length;
+    const group = document.createElement('div');
+    group.className = 'star-rating';
+    group.setAttribute('role', 'radiogroup');
+    group.setAttribute('aria-label', field.querySelector('label > span').textContent);
+    const hint = document.createElement('small');
+    hint.setAttribute('aria-live', 'polite');
+    const buttons = scores.map((score) => {
+        const button = document.createElement('button');
+        button.type = 'button';
+        button.className = 'star-button';
+        button.title = text('star_rating_score', { score, total });
+        button.setAttribute('role', 'radio');
+        button.setAttribute('aria-label', button.title);
+        button.addEventListener('click', () => choose(select.value === score ? '' : score));
+        group.append(button);
+        return button;
+    });
+    function render() {
+        const selected = select.value;
+        buttons.forEach((button, index) => {
+            const score = scores[index];
+            const active = selected === score;
+            button.textContent = Number(score) <= Number(selected) ? '★' : '☆';
+            button.setAttribute('aria-checked', String(active));
+            button.tabIndex = active || (!selected && index === 0) ? 0 : -1;
+        });
+        hint.textContent = selected ? text('star_rating_score', { score: selected, total }) : text('choose_star_rating');
+    }
+    function choose(score) {
+        select.value = score;
+        render();
+        select.dispatchEvent(new Event('input', { bubbles: true }));
+    }
+    group.addEventListener('keydown', (event) => {
+        const direction = { ArrowRight: 1, ArrowUp: 1, ArrowLeft: -1, ArrowDown: -1 }[event.key];
+        if (!direction) return;
+        event.preventDefault();
+        const next = (buttons.indexOf(event.target) + direction + total) % total;
+        choose(scores[next]);
+        buttons[next].focus();
+    });
+    render();
+    select.hidden = true;
+    field.append(group, hint);
+}
+
 function bindEditor(form) {
+    form.querySelectorAll('[data-star-rating]').forEach(bindStarRating);
     const allDay = form.elements.all_day;
     if (allDay) {
         allDay.addEventListener('change', () => {

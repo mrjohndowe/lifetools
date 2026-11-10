@@ -55,10 +55,10 @@ final class Views
             'options'=>array_intersect_key($pack['options'] + LT_OPTIONS,array_flip(LT_BROWSER_OPTIONS)),
         ];
         echo '<!doctype html><html lang="'.self::h(ltLanguage()).'" data-theme="'.self::h($theme).'"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">' .
-            '<title>'.self::th('page_title',['title'=>$title]).'</title><link rel="stylesheet" href="assets/style.css">'.
+            '<title>'.self::th('page_title',['title'=>$title]).'</title><link rel="stylesheet" href="assets/style.css?v=star-buttons">'.
             '<script type="application/json" id="lifetools-language">'.
             json_encode($browserLanguage,JSON_THROW_ON_ERROR | JSON_HEX_TAG | JSON_UNESCAPED_UNICODE).
-            '</script><script src="assets/app.js" defer></script></head><body>';
+            '</script><script src="assets/app.js?v=star-buttons" defer></script></head><body>';
     }
 
     public static function error(string $message): void
@@ -100,7 +100,7 @@ final class Views
             self::h($value).'</textarea></label>';
     }
 
-    private static function select(string $name,string $label,array $options,mixed $value = '',bool $empty = true,bool $multi = false): string
+    private static function select(string $name,string $label,array $options,mixed $value = '',bool $empty = true,bool $multi = false,bool $stars = false): string
     {
         $output = '<label class="field"><span>'.self::h($label).'</span><select name="'.self::h($name).($multi ? '[]" multiple size="4"' : '"').'>';
         if ($empty) {
@@ -110,25 +110,13 @@ final class Views
             $selected = $multi ? in_array((string)$key,(array)$value,true) : (string)$key === (string)$value;
             $output .= '<option value="'.self::h($key).'"'.($selected ? ' selected' : '').'>'.self::h($text).'</option>';
         }
-        return $output.'</select></label>';
+        $output .= '</select></label>';
+        return $stars ? '<div data-star-rating>'.$output.'</div>' : $output;
     }
 
     private static function checkbox(string $name,string $label,bool $checked = false): string
     {
         return '<label class="check"><input name="'.self::h($name).'" type="checkbox" value="1"'.($checked ? ' checked' : '').'>'.self::h($label).'</label>';
-    }
-
-    private static function stars(string $name,string $label,string $value): string
-    {
-        $name = self::h($name);
-        $output = '<fieldset class="field star-rating"><legend>'.self::h($label).'</legend><div class="rating-stars">';
-        for ($score = 1; $score <= 10; $score++) {
-            $output .= '<label class="rating-star" title="'.$score.' / 10"><input class="sr-only" type="radio" name="'.$name.
-                '" value="'.$score.'" aria-label="'.$score.' / 10"'.($value === (string)$score ? ' checked' : '').'>'.
-                self::icon('Star').'</label>';
-        }
-        return $output.'</div><label class="rating-clear"><input class="sr-only" type="radio" name="'.$name.'" value=""'.
-            ($value === '' ? ' checked' : '').'>'.self::th('clear').'</label></fieldset>';
     }
 
     private static function options(array $values, ?array $defaults = null): array
@@ -839,9 +827,8 @@ final class Views
                 'area','private'=>self::area($field,$label.($field==='content' && in_array($kind,['journal_entries','daily_logs'],true)
                     ? ltText('use_italic_or_bold') : ''),$value,'maxlength="24000"'),
                 'select','private-choice'=>self::select($field,$label,self::options($options,$defaults[$field][2]),$value),
-                'rating','private-rating'=>str_starts_with($field,'question_')
-                    ? self::stars($field,$label,$value)
-                    : self::select($field,$label,array_combine(range(1,10),range(1,10)),$value),
+                'rating','private-rating'=>self::select($field,$label,array_combine(range(1,10),range(1,10)),$value,
+                    stars:str_starts_with($field,'question_')),
                 'check'=>self::checkbox($field,$label,$field === 'all_day' && !$row ? true : (bool)$value),
                 'money'=>self::input($field,$label.' ('.($value ? $value['currency'] : $prefs['currency']).')',
                     $value ? Catalog::decimal($value) : '','text','inputmode="decimal"'),

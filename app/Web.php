@@ -9,6 +9,7 @@ final class Web
         header('Cache-Control: no-store');
         header('X-Content-Type-Options: nosniff');
         header('Referrer-Policy: no-referrer');
+        header('Content-Language: '.ltLanguage());
         header("Content-Security-Policy: default-src 'self'; frame-ancestors 'none'; object-src 'none'; base-uri 'none'; form-action 'self'");
         $api = isset($_GET['api']);
         try {
@@ -17,13 +18,24 @@ final class Web
                 throw new Problem(ltText('apache_is_ignoring_the_lifetools_htaccess'));
             }
             Install::requirements();
-            $result = Config::detect();
-            $state = Install::state($result);
             self::session();
             $action = $_POST['action'] ?? '';
             if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 self::csrf();
+                if ($action === 'language') {
+                    $language = $_POST['language'] ?? '';
+                    if (is_string($language) && isset(LT_LANGUAGES[$language])) {
+                        $cookie = session_get_cookie_params();
+                        setcookie('lifetools_language',$language,[
+                            'expires'=>time()+31536000,'path'=>$cookie['path'],'samesite'=>'Lax',
+                            'secure'=>$cookie['secure'],'httponly'=>true,
+                        ]);
+                    }
+                    self::redirect(array_intersect_key($_GET,array_flip(['view','kind','id','date','mode','trash','q','p'])));
+                }
             }
+            $result = Config::detect();
+            $state = Install::state($result);
             if ($state['phase'] !== 'configured') {
                 if ($state['phase'] === 'recovery' || $result['status'] === 'INVALID') {
                     throw new Problem(ltText('configuration_status_at_path_error_restore',['status'=>ltOption($result['status']),'path'=>$result['path'],'error'=>$result['error'] ?? '']));

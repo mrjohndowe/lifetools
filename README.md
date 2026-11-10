@@ -37,7 +37,9 @@ Settings offers redacted configuration, synthetic data, export, migrations, veri
 
 ## Site language
 
-Edit [app/lang.php](app/lang.php) to customize the installation's language. Set `LT_LANGUAGE` to the HTML language code and translate the values on the right in `LT_MESSAGES` and `LT_OPTIONS`. Keep the keys on the left and any named placeholders such as `{title}` intact. The same file supplies the browser messages. Existing records, custom choices, and export field names retain their stored values.
+LifeTools includes English and Spanish. Use the language button on the setup or sign-in page, or open the account menu after signing in. LifeTools remembers your choice in the current browser. English is the default.
+
+The English text is in [app/lang.php](app/lang.php) and the Spanish text is in [app/lang-es.php](app/lang-es.php). Keep message keys and named placeholders such as `{title}` intact when editing the text. Records, custom choices, and export field names retain their stored values.
 
 ## Configuration
 

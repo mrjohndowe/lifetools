@@ -32,6 +32,7 @@ final class Views
 
     private static function th(string $key, array $params = []): string
     {
+        
         return self::h(ltText($key,$params));
     }
 
@@ -48,11 +49,12 @@ final class Views
 
     public static function start(string $title,string $theme = 'system'): void
     {
+        $pack = ltLanguagePack();
         $browserLanguage = [
-            'messages'=>array_intersect_key(LT_MESSAGES,array_flip(LT_BROWSER_KEYS)),
-            'options'=>array_intersect_key(LT_OPTIONS,array_flip(LT_BROWSER_OPTIONS)),
+            'messages'=>array_intersect_key($pack['messages'] + LT_MESSAGES,array_flip(LT_BROWSER_KEYS)),
+            'options'=>array_intersect_key($pack['options'] + LT_OPTIONS,array_flip(LT_BROWSER_OPTIONS)),
         ];
-        echo '<!doctype html><html lang="'.self::h(LT_LANGUAGE).'" data-theme="'.self::h($theme).'"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">' .
+        echo '<!doctype html><html lang="'.self::h(ltLanguage()).'" data-theme="'.self::h($theme).'"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">' .
             '<title>'.self::th('page_title',['title'=>$title]).'</title><link rel="stylesheet" href="assets/style.css">'.
             '<script type="application/json" id="lifetools-language">'.
             json_encode($browserLanguage,JSON_THROW_ON_ERROR | JSON_HEX_TAG | JSON_UNESCAPED_UNICODE).
@@ -63,12 +65,22 @@ final class Views
     {
         self::start(ltText('request_unavailable'));
         echo '<main class="standalone"><section class="panel auth"><p class="eyebrow">'.self::th('brand_name').'</p><h1>'.self::th('request_unavailable').'</h1><p role="alert">'.self::h($message).
-            '</p><a class="button" href="index.php">'.self::th('return_to_lifetools').'</a></section></main></body></html>';
+            '</p><a class="button" href="index.php">'.self::th('return_to_lifetools').'</a>'.
+            (Web::token() !== '' ? self::languageSwitch() : '').'</section></main></body></html>';
     }
 
     private static function csrf(): string
     {
         return '<input type="hidden" name="csrf" value="'.self::h(Web::token()).'">';
+    }
+
+    private static function languageSwitch(): string
+    {
+        $language = ltLanguage() === 'en' ? 'es' : 'en';
+        $params = array_intersect_key($_GET,array_flip(['view','kind','id','date','mode','trash','q','p']));
+        return '<form class="language-switch" method="post" action="'.self::href($params).'" aria-label="'.self::th('language').'">'.
+            self::csrf().self::hidden('action','language').
+            '<button type="submit" name="language" value="'.$language.'" lang="'.$language.'">'.self::h(LT_LANGUAGES[$language]).'</button></form>';
     }
 
     private static function hidden(string $name,mixed $value): string
@@ -106,6 +118,19 @@ final class Views
         return '<label class="check"><input name="'.self::h($name).'" type="checkbox" value="1"'.($checked ? ' checked' : '').'>'.self::h($label).'</label>';
     }
 
+    private static function stars(string $name,string $label,string $value): string
+    {
+        $name = self::h($name);
+        $output = '<fieldset class="field star-rating"><legend>'.self::h($label).'</legend><div class="rating-stars">';
+        for ($score = 1; $score <= 10; $score++) {
+            $output .= '<label class="rating-star" title="'.$score.' / 10"><input class="sr-only" type="radio" name="'.$name.
+                '" value="'.$score.'" aria-label="'.$score.' / 10"'.($value === (string)$score ? ' checked' : '').'>'.
+                self::icon('Star').'</label>';
+        }
+        return $output.'</div><label class="rating-clear"><input class="sr-only" type="radio" name="'.$name.'" value=""'.
+            ($value === '' ? ' checked' : '').'>'.self::th('clear').'</label></fieldset>';
+    }
+
     private static function options(array $values, ?array $defaults = null): array
     {
         $labels = [];
@@ -132,7 +157,8 @@ final class Views
         echo '<form method="post" action="index.php" class="stack">'.self::csrf().self::hidden('action','login').
             self::input('login',ltText('login'),'','text','required autocomplete="username" autofocus').
             self::input('password',ltText('password'),'','password','required autocomplete="current-password"').
-            '<button class="primary">'.self::th('sign_in').' '.self::icon('Arrow').'</button></form></section></main></body></html>';
+            '<button class="primary">'.self::th('sign_in').' '.self::icon('Arrow').'</button></form>'.
+            self::languageSwitch().'</section></main></body></html>';
     }
 
     public static function setup(array $result,?string $error): void
@@ -179,7 +205,8 @@ final class Views
         }
         echo '<p id="setup-feedback" role="alert"></p><div class="actions"><button type="button" id="setup-back" hidden>'.self::th('back').'</button>'.
             '<button type="button" class="primary" id="setup-next" hidden>'.self::th('continue').' '.self::icon('Arrow').'</button><button class="primary" id="setup-submit">'.self::th('apply_and_lock').'</button>'.
-            '<button type="button" class="quiet" id="setup-cancel" hidden>'.self::th('cancel').'</button></div></form></section></main></body></html>';
+            '<button type="button" class="quiet" id="setup-cancel" hidden>'.self::th('cancel').'</button></div></form>'.
+            self::languageSwitch().'</section></main></body></html>';
     }
 
     public static function shellStart(Store $store,array $user,array $prefs,string $page,string $kind,string $notice): void
@@ -214,7 +241,7 @@ final class Views
         echo '</select></label><button class="no-js">'.self::th('apply').'</button></form><button type="button" class="primary quick-button" data-open="quick-add">'.
             self::icon('Plus').'<span>'.self::th('quick_add').'</span></button><details class="account-menu"><summary aria-label="'.self::th('account_menu').'">'.
             self::h(strtoupper(substr($user['title'],0,2))).'</summary><div class="panel account-pop"><strong>'.self::h($user['title']).'</strong>'.
-            '<a href="'.self::href(['view'=>'settings']).'">'.self::th('settings').'</a><form method="post" action="index.php">'.self::csrf().
+            '<a href="'.self::href(['view'=>'settings']).'">'.self::th('settings').'</a>'.self::languageSwitch().'<form method="post" action="index.php">'.self::csrf().
             self::hidden('action','logout').'<button>'.self::th('sign_out').'</button></form></div></details></div></header><main id="main" class="content">';
         $status = (new Mirror($store))->status();
         echo '<p id="mirror-banner" class="banner" role="status"'.($status['mode'] !== 'dual' || $status['mysql'] === 'reachable' ? ' hidden' : '').
@@ -812,7 +839,9 @@ final class Views
                 'area','private'=>self::area($field,$label.($field==='content' && in_array($kind,['journal_entries','daily_logs'],true)
                     ? ltText('use_italic_or_bold') : ''),$value,'maxlength="24000"'),
                 'select','private-choice'=>self::select($field,$label,self::options($options,$defaults[$field][2]),$value),
-                'rating','private-rating'=>self::select($field,$label,array_combine(range(1,10),range(1,10)),$value),
+                'rating','private-rating'=>str_starts_with($field,'question_')
+                    ? self::stars($field,$label,$value)
+                    : self::select($field,$label,array_combine(range(1,10),range(1,10)),$value),
                 'check'=>self::checkbox($field,$label,$field === 'all_day' && !$row ? true : (bool)$value),
                 'money'=>self::input($field,$label.' ('.($value ? $value['currency'] : $prefs['currency']).')',
                     $value ? Catalog::decimal($value) : '','text','inputmode="decimal"'),

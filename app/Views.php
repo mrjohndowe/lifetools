@@ -30,6 +30,11 @@ final class Views
         return htmlspecialchars((string)$text,ENT_QUOTES | ENT_SUBSTITUTE,'UTF-8');
     }
 
+    private static function th(string $key, array $params = []): string
+    {
+        return self::h(ltText($key,$params));
+    }
+
     public static function icon(string $name): string
     {
         return '<svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round"><path d="' .
@@ -43,15 +48,22 @@ final class Views
 
     public static function start(string $title,string $theme = 'system'): void
     {
-        echo '<!doctype html><html lang="en" data-theme="'.self::h($theme).'"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">' .
-            '<title>'.self::h($title).' · LifeTools</title><link rel="stylesheet" href="assets/style.css"><script src="assets/app.js" defer></script></head><body>';
+        $browserLanguage = [
+            'messages'=>array_intersect_key(LT_MESSAGES,array_flip(LT_BROWSER_KEYS)),
+            'options'=>array_intersect_key(LT_OPTIONS,array_flip(LT_BROWSER_OPTIONS)),
+        ];
+        echo '<!doctype html><html lang="'.self::h(LT_LANGUAGE).'" data-theme="'.self::h($theme).'"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">' .
+            '<title>'.self::th('page_title',['title'=>$title]).'</title><link rel="stylesheet" href="assets/style.css">'.
+            '<script type="application/json" id="lifetools-language">'.
+            json_encode($browserLanguage,JSON_THROW_ON_ERROR | JSON_HEX_TAG | JSON_UNESCAPED_UNICODE).
+            '</script><script src="assets/app.js" defer></script></head><body>';
     }
 
     public static function error(string $message): void
     {
-        self::start('Request unavailable');
-        echo '<main class="standalone"><section class="panel auth"><p class="eyebrow">LifeTools</p><h1>Request unavailable</h1><p role="alert">'.self::h($message).
-            '</p><a class="button" href="index.php">Return to LifeTools</a></section></main></body></html>';
+        self::start(ltText('request_unavailable'));
+        echo '<main class="standalone"><section class="panel auth"><p class="eyebrow">'.self::th('brand_name').'</p><h1>'.self::th('request_unavailable').'</h1><p role="alert">'.self::h($message).
+            '</p><a class="button" href="index.php">'.self::th('return_to_lifetools').'</a></section></main></body></html>';
     }
 
     private static function csrf(): string
@@ -80,7 +92,7 @@ final class Views
     {
         $output = '<label class="field"><span>'.self::h($label).'</span><select name="'.self::h($name).($multi ? '[]" multiple size="4"' : '"').'>';
         if ($empty) {
-            $output .= '<option value="">Select…</option>';
+            $output .= '<option value="">'.self::th('select').'</option>';
         }
         foreach ($options as $key=>$text) {
             $selected = $multi ? in_array((string)$key,(array)$value,true) : (string)$key === (string)$value;
@@ -94,76 +106,80 @@ final class Views
         return '<label class="check"><input name="'.self::h($name).'" type="checkbox" value="1"'.($checked ? ' checked' : '').'>'.self::h($label).'</label>';
     }
 
-    private static function options(array $values): array
+    private static function options(array $values, ?array $defaults = null): array
     {
-        return array_combine($values,$values);
+        $labels = [];
+        foreach ($values as $value) {
+            $labels[$value] = $defaults === null || in_array($value,$defaults,true) ? ltOption($value) : $value;
+        }
+        return $labels;
     }
 
     private static function timeZones(string $zone): string
     {
-        return self::select('zone','Time zone',self::options(DateTimeZone::listIdentifiers(DateTimeZone::ALL_WITH_BC)),$zone,false);
+        return self::select('zone',ltText('time_zone'),self::options(DateTimeZone::listIdentifiers(DateTimeZone::ALL_WITH_BC)),$zone,false);
     }
 
     public static function login(array $config,?string $error): void
     {
         $theme = $_COOKIE['lifetools_theme'] ?? $config['theme'];
-        self::start('Sign in',in_array($theme,['system','light','dark'],true) ? $theme : $config['theme']);
+        self::start(ltText('sign_in'),in_array($theme,['system','light','dark'],true) ? $theme : $config['theme']);
         echo '<main class="standalone"><section class="panel auth"><div class="brand"><span class="brand-icon">'.self::icon('Layers').'</span><strong>'.
-            self::h($config['name']).'</strong></div><p class="eyebrow">PRIVATE WORKSPACE</p><h1>Welcome back.</h1><p>Sign in to your personal planner.</p>';
+            self::h($config['name']).'</strong></div><p class="eyebrow">'.self::th('private_workspace').'</p><h1>'.self::th('welcome_back').'</h1><p>'.self::th('sign_in_to_your_personal_planner').'</p>';
         if ($error) {
             echo '<p class="banner danger" role="alert">'.self::h($error).'</p>';
         }
         echo '<form method="post" action="index.php" class="stack">'.self::csrf().self::hidden('action','login').
-            self::input('login','Login','','text','required autocomplete="username" autofocus').
-            self::input('password','Password','','password','required autocomplete="current-password"').
-            '<button class="primary">Sign in '.self::icon('Arrow').'</button></form></section></main></body></html>';
+            self::input('login',ltText('login'),'','text','required autocomplete="username" autofocus').
+            self::input('password',ltText('password'),'','password','required autocomplete="current-password"').
+            '<button class="primary">'.self::th('sign_in').' '.self::icon('Arrow').'</button></form></section></main></body></html>';
     }
 
     public static function setup(array $result,?string $error): void
     {
-        self::start('Set up LifeTools');
+        self::start(ltText('set_up_lifetools'));
         echo '<main class="standalone"><section class="panel installer"><div class="brand"><span class="brand-icon">'.self::icon('Layers').
-            '</span><strong>LifeTools</strong></div><p class="eyebrow">FIRST RUN · '.self::h($result['status']).
-            '</p><h1>Make it yours.</h1><p>Set up a private planner on this machine.</p>';
+            '</span><strong>'.self::th('brand_name').'</strong></div><p class="eyebrow">'.self::th('first_run',['status'=>ltOption($result['status'])]).
+            '</p><h1>'.self::th('make_it_yours').'</h1><p>'.self::th('set_up_a_private_planner_on').'</p>';
         if ($error) {
             echo '<p class="banner danger" role="alert">'.self::h($error).'</p>';
         }
         echo '<form method="post" action="index.php" id="setup-form" class="stack" autocomplete="off">'.self::csrf().self::hidden('action','install').
             '<div class="progress" aria-hidden="true"><span></span></div><p id="setup-progress" class="eyebrow" aria-live="polite"></p>';
         $steps = [
-            ['Welcome','<p>LifeTools creates a protected configuration, a local SQLite database and an administrator. You can plan, write and organize offline.</p>'],
-            ['Storage mode',self::select('mode','Primary and backup',[
-                'sqlite'=>'SQLite only · recommended','dual'=>'SQLite with MySQL backup'],'sqlite',false)],
-            ['Data location',self::input('path','SQLite file','./data/lifetools.sqlite','text','required').
-                '<p>Use the protected data directory or a writable directory outside the web root.</p>'],
-            ['MySQL backup', '<div id="mysql-options" class="form-grid">'.
-                self::input('mysql_host','Host','127.0.0.1').self::input('mysql_port','Port',3306,'number','min="1" max="65535"').
-                self::input('mysql_database','Database','lifetools').self::input('mysql_user','User','root').
-                self::input('mysql_password','MySQL password','','password','autocomplete="new-password"').
-                '<button type="button" id="test-mysql">Test connection</button><p role="status" id="mysql-result">You can continue while MySQL is unavailable.</p></div>'.
-                '<p id="mysql-skipped">SQLite-only installs use local storage.</p>'],
-            ['Encryption key', self::input('key','32-byte base64 key','','password','required autocomplete="new-password"').
-                '<div class="actions"><button type="button" id="generate-key">Generate key</button><button type="button" id="copy-key" hidden>Copy key</button></div>'.
-                '<output id="setup-key" class="break"></output><p>Keep a separate offline copy. This key unlocks your encrypted data.</p>'.
-                self::checkbox('key_saved','I have stored this key')],
-            ['Administrator',self::input('login','Login','','text','required minlength="3" maxlength="80" autocomplete="username"').
-                self::input('password','App password','','password','required minlength="12" maxlength="72" autocomplete="new-password"').
-                self::input('confirmation','Confirm password','','password','required minlength="12" maxlength="72" autocomplete="new-password"').
-                '<output id="password-strength" aria-live="polite">Use at least 12 characters.</output>'],
-            ['Preferences','<div class="form-grid">'.self::input('name','Application name','LifeTools','text','required maxlength="80"').
-                self::timeZones('UTC').self::input('currency','Currency','USD','text','required pattern="[A-Z]{3}"').
-                self::select('format','Date format',['Y-m-d'=>'Year-month-day','m/d/Y'=>'Month/day/year','d/m/Y'=>'Day/month/year'],'Y-m-d',false).
-                self::select('theme','Appearance',self::options(['system','light','dark']),'system',false).'</div>'],
-            ['Content',self::checkbox('seed','Load fictional demo content',true).
-                '<p>Demo data uses fictional people and credentials. You can also add the demo later from Settings.</p>'],
-            ['Review','<dl id="setup-summary" class="facts"></dl><p>Keep your encryption key separate from backups. Applying setup locks this installer.</p>'],
+            [ltText('welcome'),'<p>'.self::th('lifetools_creates_a_protected_configuration_a').'</p>'],
+            [ltText('storage_mode'),self::select('mode',ltText('primary_and_backup'),[
+                'sqlite'=>ltText('sqlite_only_recommended'),'dual'=>ltText('sqlite_with_mysql_backup')],'sqlite',false)],
+            [ltText('data_location'),self::input('path',ltText('sqlite_file'),'./data/lifetools.sqlite','text','required').
+                '<p>'.self::th('use_the_protected_data_directory_or').'</p>'],
+            [ltText('mysql_backup'), '<div id="mysql-options" class="form-grid">'.
+                self::input('mysql_host',ltText('host'),'127.0.0.1').self::input('mysql_port',ltText('port'),3306,'number','min="1" max="65535"').
+                self::input('mysql_database',ltText('database'),'lifetools').self::input('mysql_user',ltText('user'),'root').
+                self::input('mysql_password',ltText('mysql_password'),'','password','autocomplete="new-password"').
+                '<button type="button" id="test-mysql">'.self::th('test_connection').'</button><p role="status" id="mysql-result">'.self::th('you_can_continue_while_mysql_is').'</p></div>'.
+                '<p id="mysql-skipped">'.self::th('sqlite_only_installs_use_local_storage').'</p>'],
+            [ltText('encryption_key'), self::input('key',ltText('32_byte_base64_key'),'','password','required autocomplete="new-password"').
+                '<div class="actions"><button type="button" id="generate-key">'.self::th('generate_key').'</button><button type="button" id="copy-key" hidden>'.self::th('copy_key').'</button></div>'.
+                '<output id="setup-key" class="break"></output><p>'.self::th('keep_a_separate_offline_copy_this').'</p>'.
+                self::checkbox('key_saved',ltText('i_have_stored_this_key'))],
+            [ltText('administrator'),self::input('login',ltText('login'),'','text','required minlength="3" maxlength="80" autocomplete="username"').
+                self::input('password',ltText('app_password'),'','password','required minlength="12" maxlength="72" autocomplete="new-password"').
+                self::input('confirmation',ltText('confirm_password'),'','password','required minlength="12" maxlength="72" autocomplete="new-password"').
+                '<output id="password-strength" aria-live="polite">'.self::th('use_at_least_12_characters').'</output>'],
+            [ltText('preferences'),'<div class="form-grid">'.self::input('name',ltText('application_name'),ltText('brand_name'),'text','required maxlength="80"').
+                self::timeZones('UTC').self::input('currency',ltText('currency'),'USD','text','required pattern="[A-Z]{3}"').
+                self::select('format',ltText('date_format'),['Y-m-d'=>ltText('year_month_day'),'m/d/Y'=>ltText('month_day_year'),'d/m/Y'=>ltText('day_month_year')],'Y-m-d',false).
+                self::select('theme',ltText('appearance'),self::options(['system','light','dark']),'system',false).'</div>'],
+            [ltText('content'),self::checkbox('seed',ltText('load_fictional_demo_content'),true).
+                '<p>'.self::th('demo_data_uses_fictional_people_and').'</p>'],
+            [ltText('review'),'<dl id="setup-summary" class="facts"></dl><p>'.self::th('keep_your_encryption_key_separate_from').'</p>'],
         ];
         foreach ($steps as $index=>[$title,$content]) {
             echo '<section class="setup-step stack" data-title="'.self::h($title).'"><h2>'.($index+1).'. '.self::h($title).'</h2>'.$content.'</section>';
         }
-        echo '<p id="setup-feedback" role="alert"></p><div class="actions"><button type="button" id="setup-back" hidden>Back</button>'.
-            '<button type="button" class="primary" id="setup-next" hidden>Continue '.self::icon('Arrow').'</button><button class="primary" id="setup-submit">Apply and lock</button>'.
-            '<button type="button" class="quiet" id="setup-cancel" hidden>Cancel</button></div></form></section></main></body></html>';
+        echo '<p id="setup-feedback" role="alert"></p><div class="actions"><button type="button" id="setup-back" hidden>'.self::th('back').'</button>'.
+            '<button type="button" class="primary" id="setup-next" hidden>'.self::th('continue').' '.self::icon('Arrow').'</button><button class="primary" id="setup-submit">'.self::th('apply_and_lock').'</button>'.
+            '<button type="button" class="quiet" id="setup-cancel" hidden>'.self::th('cancel').'</button></div></form></section></main></body></html>';
     }
 
     public static function shellStart(Store $store,array $user,array $prefs,string $page,string $kind,string $notice): void
@@ -171,8 +187,8 @@ final class Views
         $name = $store->config['name'];
         self::start($name,$prefs['theme']);
         echo '<div class="layout" data-mode="'.self::h($store->config['mode']).'"><aside class="sidebar"><a class="brand" href="index.php"><span class="brand-icon">'.
-            self::icon('Layers').'</span><span><strong>'.self::h($name).'</strong><small>PERSONAL PLANNER</small></span></a>'.
-            '<details class="nav-wrap" open><summary>Workspace navigation</summary><nav aria-label="Workspace"><p class="nav-caption">WORKSPACE</p>';
+            self::icon('Layers').'</span><span><strong>'.self::h($name).'</strong><small>'.self::th('personal_planner').'</small></span></a>'.
+            '<details class="nav-wrap" open><summary>'.self::th('workspace_navigation').'</summary><nav aria-label="'.self::th('workspace_2').'"><p class="nav-caption">'.self::th('workspace').'</p>';
         $navigation = ['Dashboard'=>['view'=>'dashboard'],'Timeline'=>['view'=>'module','kind'=>'events'],'Calendar'=>['view'=>'calendar']];
         foreach (Catalog::MODULES as $group=>$kinds) {
             if ($group !== 'Timeline') {
@@ -184,25 +200,25 @@ final class Views
             $active = isset($params['kind'])
                 ? (in_array($kind,Catalog::MODULES[$label],true) && in_array($page,['module','record'],true))
                 : $page === $params['view'];
-            echo '<a href="'.self::href($params).'"'.($active ? ' class="active" aria-current="page"' : '').'>'.self::icon($label).'<span>'.self::h($label).'</span></a>';
+            echo '<a href="'.self::href($params).'"'.($active ? ' class="active" aria-current="page"' : '').'>'.self::icon($label).'<span>'.self::h(ltOption($label)).'</span></a>';
         }
-        echo '</nav></details><div class="sidebar-footer"><span class="online-dot"></span> Local workspace</div></aside><div class="workspace">'.
+        echo '</nav></details><div class="sidebar-footer"><span class="online-dot"></span> '.self::th('local_workspace').'</div></aside><div class="workspace">'.
             '<header class="topbar"><form class="searchbar" action="index.php" method="get">'.self::hidden('view','search').
-            '<label>'.self::icon('Search').'<input name="q" type="search" aria-label="Search workspace" placeholder="Search workspace…"></label></form>'.
+            '<label>'.self::icon('Search').'<input name="q" type="search" aria-label="'.self::th('search_workspace').'" placeholder="'.self::th('search_workspace_2').'"></label></form>'.
             '<div class="header-actions"><form method="post" action="'.self::href(['view'=>'settings']).'" data-theme-form>'.
             self::csrf().self::hidden('action','settings').self::hidden('operation','theme').
-            '<label class="theme-select"><span class="sr-only">Appearance</span><select name="theme" aria-label="Appearance" title="Appearance">';
-        foreach (['system'=>'◐ System','light'=>'☼ Light','dark'=>'☾ Dark'] as $key=>$label) {
-            echo '<option value="'.$key.'"'.($prefs['theme']===$key ? ' selected' : '').'>'.$label.'</option>';
+            '<label class="theme-select"><span class="sr-only">'.self::th('appearance').'</span><select name="theme" aria-label="'.self::th('appearance').'" title="'.self::th('appearance').'">';
+        foreach (['system'=>ltText('system'),'light'=>ltText('light'),'dark'=>ltText('dark')] as $key=>$label) {
+            echo '<option value="'.$key.'"'.($prefs['theme']===$key ? ' selected' : ''). '>'.self::h($label).'</option>';
         }
-        echo '</select></label><button class="no-js">Apply</button></form><button type="button" class="primary quick-button" data-open="quick-add">'.
-            self::icon('Plus').'<span>Quick add</span></button><details class="account-menu"><summary aria-label="Account menu">'.
+        echo '</select></label><button class="no-js">'.self::th('apply').'</button></form><button type="button" class="primary quick-button" data-open="quick-add">'.
+            self::icon('Plus').'<span>'.self::th('quick_add').'</span></button><details class="account-menu"><summary aria-label="'.self::th('account_menu').'">'.
             self::h(strtoupper(substr($user['title'],0,2))).'</summary><div class="panel account-pop"><strong>'.self::h($user['title']).'</strong>'.
-            '<a href="'.self::href(['view'=>'settings']).'">Settings</a><form method="post" action="index.php">'.self::csrf().
-            self::hidden('action','logout').'<button>Sign out</button></form></div></details></div></header><main id="main" class="content">';
+            '<a href="'.self::href(['view'=>'settings']).'">'.self::th('settings').'</a><form method="post" action="index.php">'.self::csrf().
+            self::hidden('action','logout').'<button>'.self::th('sign_out').'</button></form></div></details></div></header><main id="main" class="content">';
         $status = (new Mirror($store))->status();
         echo '<p id="mirror-banner" class="banner" role="status"'.($status['mode'] !== 'dual' || $status['mysql'] === 'reachable' ? ' hidden' : '').
-            '>MySQL backup is awaiting sync. Your changes are saved in SQLite.</p>';
+            '>'.self::th('mysql_backup_is_awaiting_sync_your').'</p>';
         if ($notice !== '') {
             echo '<p class="banner success" role="status">'.self::h($notice).'</p>';
         }
@@ -210,15 +226,15 @@ final class Views
 
     public static function shellEnd(array $prefs): void
     {
-        echo '</main></div></div><dialog id="quick-add"><div class="dialog-head"><h2>Quick add</h2><button type="button" data-close aria-label="Close">×</button></div>'.
-            self::select('quick_kind','Record type',['events'=>'Event','contacts'=>'Contact','notes'=>'Note','list_items'=>'List item','journal_entries'=>'Journal entry'],'events',false).
-            '<div id="quick-body" class="stack"></div></dialog><dialog id="reveal"><div class="dialog-head"><h2>Reveal protected value</h2>'.
-            '<button type="button" data-close aria-label="Close">×</button></div><form id="reveal-form" class="stack">'.self::csrf().
+        echo '</main></div></div><dialog id="quick-add"><div class="dialog-head"><h2>'.self::th('quick_add').'</h2><button type="button" data-close aria-label="'.self::th('close').'">×</button></div>'.
+            self::select('quick_kind',ltText('record_type'),['events'=>ltText('event'),'contacts'=>ltText('contact'),'notes'=>ltText('note'),'list_items'=>ltText('list_item'),'journal_entries'=>ltText('journal_entry')],'events',false).
+            '<div id="quick-body" class="stack"></div></dialog><dialog id="reveal"><div class="dialog-head"><h2>'.self::th('reveal_protected_value').'</h2>'.
+            '<button type="button" data-close aria-label="'.self::th('close').'">×</button></div><form id="reveal-form" class="stack">'.self::csrf().
             self::hidden('action','reveal').self::hidden('kind','').self::hidden('id','').self::hidden('field','').
-            self::input('password','Application password','','password','required autocomplete="current-password"').
-            '<button class="primary">Reveal for 30 seconds</button><output aria-live="polite" id="reveal-status"></output></form>'.
-            '<div id="reveal-value" hidden><p class="secret-output break" id="secret-output"></p><div class="actions"><button type="button" id="copy-secret">Copy</button>'.
-            '<button type="button" data-close>Hide</button></div></div></dialog></body></html>';
+            self::input('password',ltText('application_password'),'','password','required autocomplete="current-password"').
+            '<button class="primary">'.self::th('reveal_for_30_seconds').'</button><output aria-live="polite" id="reveal-status"></output></form>'.
+            '<div id="reveal-value" hidden><p class="secret-output break" id="secret-output"></p><div class="actions"><button type="button" id="copy-secret">'.self::th('copy').'</button>'.
+            '<button type="button" data-close>'.self::th('hide').'</button></div></div></dialog></body></html>';
     }
 
     private static function heading(string $eyebrow,string $title,string $sub = '',string $actions = ''): void
@@ -258,7 +274,7 @@ final class Views
             WHERE owner=? AND kind='contacts' AND deleted_at IS NULL AND json_extract(payload,'$.dob')<>''",[$owner]) as $contact) {
             $when = Web::birthday($contact['dob'],$today);
             if ($when <= $today->modify('+30 days')) {
-                $birthdays[] = ['id'=>$contact['id'],'title'=>$contact['title'],'meta'=>$when->format('M j'),'date'=>$when->format('Y-m-d')];
+                $birthdays[] = ['id'=>$contact['id'],'title'=>$contact['title'],'meta'=>ltDate($when,'short_date'),'date'=>$when->format('Y-m-d')];
             }
         }
         usort($birthdays,static fn($a,$b)=>$a['date'] <=> $b['date']);
@@ -266,34 +282,34 @@ final class Views
         $stock = self::dashboardRows($store,$owner,'business_inventory',"AND json_extract(payload,'$.quantity')<=json_extract(payload,'$.threshold')",'quantity');
         $journal = self::dashboardRows($store,$owner,'journal_entries','','');
         $status = (new Mirror($store))->status();
-        self::heading('YOUR OVERVIEW','Dashboard',$today->format('l, F j, Y'),self::button('Open calendar',['view'=>'calendar']));
-        echo '<section class="hero"><div><p class="eyebrow">THE PERSONAL PLANNER</p><h2>Make room for what matters.</h2>'.
-            '<p>Plan what’s ahead, find what you’ve saved, and keep the details of life in one private workspace.</p>'.
-            '<a class="button hero-action" href="'.self::href(['view'=>'module','kind'=>'events']).'">Explore timeline '.self::icon('Arrow').'</a></div>'.
+        self::heading(ltText('your_overview'),ltText('dashboard'),ltDate($today,'full_date'),self::button(ltText('open_calendar'),['view'=>'calendar']));
+        echo '<section class="hero"><div><p class="eyebrow">'.self::th('the_personal_planner').'</p><h2>'.self::th('make_room_for_what_matters').'</h2>'.
+            '<p>'.self::th('plan_whats_ahead_find_what_youve').'</p>'.
+            '<a class="button hero-action" href="'.self::href(['view'=>'module','kind'=>'events']).'">'.self::th('explore_timeline').' '.self::icon('Arrow').'</a></div>'.
             '<div class="hero-art" aria-hidden="true"><i></i><i></i><i></i><span>'.self::icon('Layers').'</span></div></section>';
         echo '<div class="stats">';
         foreach ([
-            ['Calendar','Today',count($todayItems),'Scheduled events'],
-            ['Timeline','Next 7 days',count($upcoming),'Upcoming events'],
-            ['Clock','Due reminders',count($due),'Ready for review'],
-            ['Star','Birthdays',count($birthdays),'Within 30 days'],
+            ['Calendar',ltText('today'),count($todayItems),ltText('scheduled_events')],
+            ['Timeline',ltText('next_7_days'),count($upcoming),ltText('upcoming_events')],
+            ['Clock',ltText('due_reminders'),count($due),ltText('ready_for_review')],
+            ['Star',ltText('birthdays'),count($birthdays),ltText('within_30_days')],
         ] as [$icon,$label,$total,$caption]) {
             echo '<article class="panel stat"><div>'.self::icon($icon).'<span>'.self::h($label).'</span></div><strong'.
                 ($icon === 'Clock' ? ' id="due-count"' : '').'>'.self::h($total).
                 '</strong><small>'.self::h($caption).'</small></article>';
         }
         echo '</div><div class="dashboard-grid">';
-        self::agendaCard('Today’s agenda',$todayItems,'Nothing scheduled today. Add an event when you’re ready.');
-        self::agendaCard('Next 7 days',$upcoming,'Your upcoming plans will appear here.');
-        self::agendaCard('Due reminders',$due,'You’re caught up on reminders.',true);
-        self::miniCard('Upcoming birthdays','contacts',$birthdays,'Add a birthday to a contact to see it here.');
-        self::miniCard('Open chores','chores',$chores,'Add a chore to start your cleaning schedule.');
-        self::miniCard('Low stock','business_inventory',$stock,'No items have reached their low-stock threshold.');
-        self::miniCard('Recent journal entries','journal_entries',$journal,'Write your first journal entry.');
-        echo '<section class="panel widget"><div class="widget-head"><h2>Storage & sync</h2><span class="pill success"><span class="online-dot"></span> SQLite primary</span></div>'.
-            '<dl class="facts" id="sync-facts"><dt>Mode</dt><dd>'.self::h($status['mode']).'</dd><dt>MySQL</dt><dd data-health="mysql">'.self::h($status['mysql']).
-            '</dd><dt>Pending</dt><dd data-health="queueDepth">'.self::h($status['queueDepth']).'</dd><dt>Last sync</dt><dd data-health="lastSync">'.
-            self::h($status['lastSync'] ?? '—').'</dd><dt>Last error</dt><dd data-health="lastError">'.self::h($status['lastError'] ?? '—').
+        self::agendaCard(ltText('todays_agenda'),$todayItems,ltText('nothing_scheduled_today_add_an_event'));
+        self::agendaCard(ltText('next_7_days'),$upcoming,ltText('your_upcoming_plans_will_appear_here'));
+        self::agendaCard(ltText('due_reminders'),$due,ltText('youre_caught_up_on_reminders'),true);
+        self::miniCard(ltText('upcoming_birthdays'),'contacts',$birthdays,ltText('add_a_birthday_to_a_contact'));
+        self::miniCard(ltText('open_chores'),'chores',$chores,ltText('add_a_chore_to_start_your'));
+        self::miniCard(ltText('low_stock'),'business_inventory',$stock,ltText('no_items_have_reached_their_low'));
+        self::miniCard(ltText('recent_journal_entries'),'journal_entries',$journal,ltText('write_your_first_journal_entry'));
+        echo '<section class="panel widget"><div class="widget-head"><h2>'.self::th('storage_sync').'</h2><span class="pill success"><span class="online-dot"></span> '.self::th('sqlite_primary').'</span></div>'.
+            '<dl class="facts" id="sync-facts"><dt>'.self::th('mode').'</dt><dd>'.self::h(ltOption($status['mode'])).'</dd><dt>'.self::th('mysql').'</dt><dd data-health="mysql">'.self::h(ltOption($status['mysql'])).
+            '</dd><dt>'.self::th('pending').'</dt><dd data-health="queueDepth">'.self::h($status['queueDepth']).'</dd><dt>'.self::th('last_sync').'</dt><dd data-health="lastSync">'.
+            self::h($status['lastSync'] ?? '—').'</dd><dt>'.self::th('last_error').'</dt><dd data-health="lastError">'.self::h($status['lastError'] ?? '—').
             '</dd></dl></section></div>';
     }
 
@@ -306,7 +322,7 @@ final class Views
     private static function miniCard(string $title,string $kind,array $items,string $empty): void
     {
         echo '<section class="panel widget"><div class="widget-head"><h2>'.self::h($title).'</h2><a href="'.self::href(['view'=>'module','kind'=>$kind]).
-            '" aria-label="Open '.self::h($title).'">'.self::icon('Arrow').'</a></div>';
+            '" aria-label="'.self::th('open_title',['title'=>$title]).'">'.self::icon('Arrow').'</a></div>';
         if (!$items) {
             echo '<p class="empty-inline">'.self::h($empty).'</p>';
         }
@@ -320,7 +336,7 @@ final class Views
     private static function agendaCard(string $title,array $items,string $empty,bool $due = false): void
     {
         echo '<section class="panel widget"><div class="widget-head"><h2>'.self::h($title).'</h2><a href="'.self::href(['view'=>'calendar']).
-            '" aria-label="Open calendar">'.self::icon('Arrow').'</a></div><div'.($due ? ' id="due-list" aria-live="polite"' : '').'>';
+            '" aria-label="'.self::th('open_calendar').'">'.self::icon('Arrow').'</a></div><div'.($due ? ' id="due-list" aria-live="polite"' : '').'>';
         if (!$items) {
             echo '<p class="empty-inline">'.self::h($empty).'</p>';
         }
@@ -334,7 +350,7 @@ final class Views
     {
         echo '<a class="event-chip'.($event['status'] === 'cancelled' ? ' cancelled' : '').'" href="'.
             self::href(['view'=>'record','kind'=>'events','id'=>$event['id']]).'"><span>'.self::h($event['title']).'</span>'.
-            ($detail ? '<small>'.self::h($event['start']->format($event['allDay'] ? 'M j · \A\l\l \d\a\y' : 'M j · H:i')).'</small>' : '').'</a>';
+            ($detail ? '<small>'.self::h(ltDate($event['start'],$event['allDay'] ? 'short_date_all_day' : 'short_date_time')).'</small>' : '').'</a>';
     }
 
     public static function calendar(Store $store,string $owner,array $prefs): void
@@ -353,17 +369,17 @@ final class Views
         $step = $mode === 'month' ? '1 month' : ($mode === 'week' ? '7 days' : '30 days');
         $base = $mode === 'month' ? $anchor->modify('first day of this month') : $anchor;
         $params = ['view'=>'calendar','mode'=>$mode];
-        self::heading('PLANNER','Calendar',$anchor->format('F Y'),self::button('Add event',['view'=>'record','kind'=>'events','date'=>$anchor->format('Y-m-d')],true));
+        self::heading(ltText('planner'),ltText('calendar'),ltDate($anchor,'month_year'),self::button(ltText('add_event'),['view'=>'record','kind'=>'events','date'=>$anchor->format('Y-m-d')],true));
         echo '<div class="calendar-controls"><div class="actions">'.
-            self::button('← Previous',$params+['date'=>$base->modify('-'.$step)->format('Y-m-d')]).
-            self::button('Today',$params+['date'=>$today]).
-            self::button('Next →',$params+['date'=>$base->modify('+'.$step)->format('Y-m-d')]).'</div><nav class="tabs" aria-label="Calendar view">';
-        foreach (['month'=>'Month','week'=>'Week','agenda'=>'Agenda'] as $key=>$label) {
-            echo '<a class="'.($key === $mode ? 'selected' : '').'" href="'.self::href(['view'=>'calendar','mode'=>$key,'date'=>$anchor->format('Y-m-d')]).'">'.$label.'</a>';
+            self::button(ltText('previous'),$params+['date'=>$base->modify('-'.$step)->format('Y-m-d')]).
+            self::button(ltText('today'),$params+['date'=>$today]).
+            self::button(ltText('next'),$params+['date'=>$base->modify('+'.$step)->format('Y-m-d')]).'</div><nav class="tabs" aria-label="'.self::th('calendar_view').'">';
+        foreach (['month'=>ltText('month'),'week'=>ltText('week'),'agenda'=>ltText('agenda')] as $key=>$label) {
+            echo '<a class="'.($key === $mode ? 'selected' : '').'" href="'.self::href(['view'=>'calendar','mode'=>$key,'date'=>$anchor->format('Y-m-d')]).'">'.self::h($label).'</a>';
         }
         echo '</nav></div>';
         if ($mode === 'agenda') {
-            self::agendaCard('Upcoming agenda',$items,'No events in this range.');
+            self::agendaCard(ltText('upcoming_agenda'),$items,ltText('no_events_in_this_range'));
             return;
         }
         $byDate = [];
@@ -374,14 +390,14 @@ final class Views
                 $byDate[$day->format('Y-m-d')][] = $event;
             }
         }
-        echo '<section class="panel calendar-grid" aria-label="Calendar days">';
-        foreach (['Mon','Tue','Wed','Thu','Fri','Sat','Sun'] as $day) {
-            echo '<div class="weekday">'.$day.'</div>';
+        echo '<section class="panel calendar-grid" aria-label="'.self::th('calendar_days').'">';
+        foreach ([ltText('mon'),ltText('tue'),ltText('wed'),ltText('thu'),ltText('fri'),ltText('sat'),ltText('sun')] as $day) {
+            echo '<div class="weekday">'.self::h($day).'</div>';
         }
         for ($day=$gridStart;$day<=$gridEnd;$day=$day->modify('+1 day')) {
             $key = $day->format('Y-m-d');
             echo '<div class="calendar-day'.($key === $today ? ' current' : '').($day->format('m') !== $anchor->format('m') ? ' outside' : '').
-                '"><a class="day-number" aria-label="Add event on '.self::h($key).'" href="'.self::href(['view'=>'record','kind'=>'events','date'=>$key]).
+                '"><a class="day-number" aria-label="'.self::th('add_event_on_date',['date'=>$key]).'" href="'.self::href(['view'=>'record','kind'=>'events','date'=>$key]).
                 '">'.self::h($day->format('j')).'</a>';
             foreach ($byDate[$key] ?? [] as $event) {
                 self::eventLink($event);
@@ -399,7 +415,7 @@ final class Views
                 return $group;
             }
         }
-        throw new Problem('Unknown module.');
+        throw new Problem(ltText('unknown_module'));
     }
 
     private static function tabs(string $group,string $kind): void
@@ -407,13 +423,13 @@ final class Views
         if (count(Catalog::MODULES[$group]) < 2) {
             return;
         }
-        echo '<nav class="tabs module-tabs" aria-label="Modules">';
+        echo '<nav class="tabs module-tabs" aria-label="'.self::th('modules').'">';
         foreach (Catalog::MODULES[$group] as $module) {
             echo '<a'.($module===$kind ? ' class="selected" aria-current="page"' : '').' href="'.
-                self::href(['view'=>'module','kind'=>$module]).'">'.self::h(Catalog::LABELS[$module]).'</a>';
+                self::href(['view'=>'module','kind'=>$module]).'">'.self::h(Catalog::label($module)).'</a>';
         }
         if ($group === 'Vault') {
-            echo '<a href="'.self::href(['view'=>'banks']).'">Compare banks</a>';
+            echo '<a href="'.self::href(['view'=>'banks']).'">'.self::th('compare_banks').'</a>';
         }
         echo '</nav>';
     }
@@ -440,7 +456,7 @@ final class Views
         $labels = [];
         foreach ($store->run("SELECT id,kind,title FROM records WHERE owner=? AND deleted_at IS NULL AND kind IN ($slots)
             ORDER BY title LIMIT 1000",[$owner,...$kinds]) as $row) {
-            $labels[$row['id']] = count($kinds) > 1 ? $row['title'].' · '.Catalog::LABELS[$row['kind']] : $row['title'];
+            $labels[$row['id']] = count($kinds) > 1 ? $row['title'].' · '.Catalog::label($row['kind']) : $row['title'];
         }
         foreach ($selected as $id) {
             if (!isset($labels[$id])) {
@@ -492,6 +508,7 @@ final class Views
             default=>'category',
         };
         $fields = Catalog::fields($kind,$prefs);
+        $defaults = Catalog::fields($kind);
         $facets = array_intersect_key($fields,array_flip([$categoryField,'tags',...($kind==='music_tracks' ? ['artist','album'] : [])]));
         foreach ($facets as $field=>$_) {
             $value = Catalog::text($filter[$field] ?? '',150);
@@ -554,23 +571,25 @@ final class Views
             array_pop($records);
         }
         $route = ['view'=>'module','kind'=>$kind]+($trash ? ['trash'=>'1'] : []);
-        self::heading(strtoupper($group),($trash ? 'Trash · ' : '').($timeline ? 'Timeline' : Catalog::LABELS[$kind]),
-            $timeline ? 'A chronological record of your plans and milestones.' : 'Records in your private workspace.',
-            self::button($trash ? 'Back to records' : 'Trash',['view'=>'module','kind'=>$kind]+($trash ? [] : ['trash'=>'1'])).
-            (!$trash ? self::button('Add record',['view'=>'record','kind'=>$kind],true) : ''));
+        $module = $timeline ? ltText('timeline') : Catalog::label($kind);
+        self::heading(mb_strtoupper(ltOption($group)),
+            $trash ? ltText('trash_module',['module'=>$module]) : $module,
+            $timeline ? ltText('a_chronological_record_of_your_plans') : ltText('records_in_your_private_workspace'),
+            self::button($trash ? ltText('back_to_records') : ltText('trash'),['view'=>'module','kind'=>$kind]+($trash ? [] : ['trash'=>'1'])).
+            (!$trash ? self::button(ltText('add_record'),['view'=>'record','kind'=>$kind],true) : ''));
         self::tabs($group,$kind);
         if (in_array($kind,['business_inventory','income_entries','work_orders'],true)) {
             self::businessSummary($store,$owner,$prefs);
         }
         echo '<form class="panel filters" method="'.($private ? 'post' : 'get').'" action="'.self::href($private ? $route : []).'">'.
             ($private ? self::csrf() : self::hidden('view','module').self::hidden('kind',$kind).($trash ? self::hidden('trash','1') : '')).
-            self::input('q',$private ? 'Search private entries' : 'Search this module',$q,'search');
+            self::input('q',$private ? ltText('search_private_entries') : ltText('search_this_module'),$q,'search');
         foreach ($facets as $field=>[$type,$label]) {
-            echo $type==='select' ? self::select($field,$label,self::options($fields[$field][2]),$filter[$field] ?? '')
+            echo $type==='select' ? self::select($field,$label,self::options($fields[$field][2],$defaults[$field][2]),$filter[$field] ?? '')
                 : self::input($field,$label,$filter[$field] ?? '');
         }
         if ($timeline || $private || $kind==='meal_plans') {
-            echo self::input('from','From',$filter['from'] ?? '','date').self::input('to','Through',$filter['to'] ?? '','date');
+            echo self::input('from',ltText('from'),$filter['from'] ?? '','date').self::input('to',ltText('through'),$filter['to'] ?? '','date');
         }
         $targets = match ($kind) {
             'events'=>['contacts','vehicles','accounts','documents','work_orders'],
@@ -581,29 +600,29 @@ final class Views
             default=>[],
         };
         if ($targets) {
-            echo self::select('linked','Linked record',self::linkOptions($store,$owner,$targets,$linked ? [$linked] : []),$linked);
+            echo self::select('linked',ltText('linked_record'),self::linkOptions($store,$owner,$targets,$linked ? [$linked] : []),$linked);
         }
         if ($kind==='contacts') {
-            echo self::select('sort','Sort',['recent'=>'Recently updated','name'=>'Name A–Z'],$named ? 'name' : 'recent',false);
+            echo self::select('sort',ltText('sort'),['recent'=>ltText('recently_updated'),'name'=>ltText('name_a_z')],$named ? 'name' : 'recent',false);
         }
         if ($kind==='intimacy_events') {
-            echo self::select('rating','Overall rating',array_combine(range(1,10),range(1,10)),$rating);
+            echo self::select('rating',ltText('overall_rating'),array_combine(range(1,10),range(1,10)),$rating);
         }
         if ($kind==='music_tracks') {
-            echo self::checkbox('favorite','Favorites only',$favorite);
+            echo self::checkbox('favorite',ltText('favorites_only'),$favorite);
         }
-        echo '<div class="actions"><button>Apply filters</button>'.self::button('Clear',$route);
+        echo '<div class="actions"><button>'.self::th('apply_filters').'</button>'.self::button(ltText('clear'),$route);
         if ($private && $page>1) {
-            echo '<button name="p" value="'.($page-1).'">Previous page</button>';
+            echo '<button name="p" value="'.($page-1).'">'.self::th('previous_page').'</button>';
         }
         if ($private && $next) {
-            echo '<button name="p" value="'.($page+1).'">Next page</button>';
+            echo '<button name="p" value="'.($page+1).'">'.self::th('next_page').'</button>';
         }
         echo '</div></form>';
         if (!$records) {
-            echo '<div class="panel empty">'.self::icon($group).'<h2>No records to show</h2><p>'.
-                ($trash ? 'Deleted records appear here.' : 'Try different filters, add a record, or load the fictional demo in Settings.').
-                '</p>'.($trash ? '' : self::button('Add record',['view'=>'record','kind'=>$kind],true).' '.self::button('Open Settings',['view'=>'settings'])).'</div>';
+            echo '<div class="panel empty">'.self::icon($group).'<h2>'.self::th('no_records_to_show').'</h2><p>'.
+                ($trash ? self::th('deleted_records_appear_here') : self::th('try_different_filters_add_a_record')).
+                '</p>'.($trash ? '' : self::button(ltText('add_record'),['view'=>'record','kind'=>$kind],true).' '.self::button(ltText('open_settings'),['view'=>'settings'])).'</div>';
         }
         $month = '';
         $today = self::today($prefs)->format('Y-m-d');
@@ -613,14 +632,18 @@ final class Views
             $newMonth = substr($local,0,7);
             if ($timeline && $newMonth !== '' && $newMonth !== $month) {
                 $month = $newMonth;
-                echo '<h2 class="month-label">'.self::h((new DateTimeImmutable($month.'-01'))->format('F Y')).'</h2>';
+                echo '<h2 class="month-label">'.self::h(ltDate(new DateTimeImmutable($month.'-01'),'month_year')).'</h2>';
             }
-            $label = $p[$categoryField] ?? $p['type'] ?? '';
+            $labelField = isset($p[$categoryField]) ? $categoryField : 'type';
+            $label = $p[$labelField] ?? '';
+            if (($fields[$labelField][0] ?? '') === 'select' && in_array($label,$defaults[$labelField][2],true)) {
+                $label = ltOption($label);
+            }
             echo '<article class="panel record-row"><div class="record-icon">'.self::icon($group).'</div><div class="row-content"><a class="row-title" href="'.
                 self::href(['view'=>'record','kind'=>$kind,'id'=>$row['id']]+($trash ? ['trash'=>'1'] : [])).'">'.self::highlight($row['title'],$q).
                 '</a><small>'.self::h(implode(' · ',array_filter([self::dateLabel($row['starts'],$prefs),$label,$p['tags'] ?? '']))).'</small></div>';
             if ($timeline) {
-                echo '<span class="pill">'.(substr($local,0,10)<$today ? 'Past' : 'Upcoming').' · '.self::h($p['status']).'</span>';
+                echo '<span class="pill">'.(substr($local,0,10)<$today ? self::th('past') : self::th('upcoming')).' · '.self::h(ltOption($p['status'] ?? '')).'</span>';
             }
             if (!empty($p['last_four'])) {
                 echo '<span class="pill">•••• '.self::h($p['last_four']).'</span>';
@@ -629,20 +652,20 @@ final class Views
                 echo '<img class="thumbnail" src="'.self::href(['file'=>$row['id']]).'" alt="" loading="lazy">';
             }
             if ($kind==='websites' && !$trash && $p['url']) {
-                echo '<a href="'.self::h($p['url']).'" target="_blank" rel="noopener noreferrer" class="pill">Open site ↗</a>';
+                echo '<a href="'.self::h($p['url']).'" target="_blank" rel="noopener noreferrer" class="pill">'.self::th('open_site').'</a>';
             }
             echo '</article>';
         }
         if (!$private) {
             $pagination = $_GET;
             unset($pagination['p']);
-            echo '<nav class="actions pager" aria-label="Pagination">'.
-                ($page>1 ? self::button('← Previous',$pagination+['p'=>$page-1]) : '').
-                ($next ? self::button('Next →',$pagination+['p'=>$page+1]) : '').'</nav>';
+            echo '<nav class="actions pager" aria-label="'.self::th('pagination').'">'.
+                ($page>1 ? self::button(ltText('previous'),$pagination+['p'=>$page-1]) : '').
+                ($next ? self::button(ltText('next'),$pagination+['p'=>$page+1]) : '').'</nav>';
         }
         if (!$private && !$trash) {
             echo '<form class="pager" method="post" action="index.php">'.self::csrf().self::hidden('action','export').self::hidden('kind',$kind).
-                '<button>Export module CSV</button></form>';
+                '<button>'.self::th('export_module_csv').'</button></form>';
         }
     }
 
@@ -653,28 +676,28 @@ final class Views
         $id = (string)($_GET['id'] ?? '');
         $row = $id === '' ? null : $store->record($owner,$id,$kind,($_GET['trash'] ?? '')==='1');
         $p = $row ? Store::payload($row) : [];
-        self::heading(Catalog::LABELS[$kind],$row['title'] ?? 'New record',
-            $row ? 'Updated '.self::dateLabel($row['updated_at'],$prefs) : 'Add an entry to your workspace.',
-            self::button('Back to records',['view'=>'module','kind'=>$kind]));
+        self::heading(Catalog::label($kind),$row['title'] ?? ltText('new_record'),
+            $row ? ltText('updated_date',['date'=>self::dateLabel($row['updated_at'],$prefs)]) : ltText('add_an_entry_to_your_workspace'),
+            self::button(ltText('back_to_records'),['view'=>'module','kind'=>$kind]));
         if ($row && $row['deleted_at'] !== null) {
-            echo '<section class="panel widget"><p>This record is in the trash.</p>'.
-                self::actionForm('restore_record','Restore record',$row).'</section>';
+            echo '<section class="panel widget"><p>'.self::th('this_record_is_in_the_trash').'</p>'.
+                self::actionForm('restore_record',ltText('restore_record'),$row).'</section>';
             return;
         }
         if ($kind === 'intimacy_events') {
-            echo '<p class="banner">All questionnaire answers and ratings are optional. An unanswered consent question stays unanswered.</p>';
+            echo '<p class="banner">'.self::th('all_questionnaire_answers_and_ratings_are').'</p>';
         }
         if ($kind==='contacts' && !empty($p['dob'])) {
             $birth = Planner::date($p['dob']);
             $now = Planner::date(self::today($prefs)->format('Y-m-d'));
             if ($birth <= $now) {
-                echo '<p class="pill">Age '.self::h($birth->diff($now)->y).'</p>';
+                echo '<p class="pill">'.self::th('age_age',['age'=>$birth->diff($now)->y]).'</p>';
             }
         }
         if ($kind==='attachments' && $row) {
-            echo '<section class="panel widget">'.self::button('Open file',['file'=>$id]).
-                (str_starts_with($p['mime'],'image/') ? '<img class="preview" alt="Uploaded image" src="'.self::href(['file'=>$id]).'">' : '').
-                '<p>'.self::h($p['mime']).' · '.self::h($p['size']).' bytes</p></section>';
+            echo '<section class="panel widget">'.self::button(ltText('open_file'),['file'=>$id]).
+                (str_starts_with($p['mime'],'image/') ? '<img class="preview" alt="'.self::th('uploaded_image').'" src="'.self::href(['file'=>$id]).'">' : '').
+                '<p>'.self::h($p['mime']).' · '.self::th('size_bytes',['size'=>$p['size']]).'</p></section>';
         }
         if ($row && in_array($kind,['journal_entries','daily_logs'],true)) {
             $body = $store->privateValue($row,'content');
@@ -682,7 +705,7 @@ final class Views
                 $safe = self::h($body);
                 $safe = preg_replace('/\*\*([^*\r\n]+)\*\*/','<strong>$1</strong>',$safe);
                 $safe = preg_replace('/(?<!\*)\*([^*\r\n]+)\*(?!\*)/','<em>$1</em>',$safe);
-                echo '<section class="panel widget"><h2>Entry preview</h2><p class="journal-text">'.$safe.'</p></section>';
+                echo '<section class="panel widget"><h2>'.self::th('entry_preview').'</h2><p class="journal-text">'.$safe.'</p></section>';
             }
         }
         self::editor($store,$owner,$kind,$prefs,$row);
@@ -691,22 +714,22 @@ final class Views
         }
         echo '<div class="actions record-actions">';
         if ($kind === 'events') {
-            echo self::actionForm('duplicate','Duplicate event',$row);
+            echo self::actionForm('duplicate',ltText('duplicate_event'),$row);
         }
         if (in_array($kind,['vehicle_documents','documents','appointments','work_shifts','chores','contacts'],true)) {
-            echo self::actionForm('schedule',$kind==='contacts' ? 'Schedule birthday reminder' : 'Add to planner',$row);
+            echo self::actionForm('schedule',$kind==='contacts' ? ltText('schedule_birthday_reminder') : ltText('add_to_planner'),$row);
         }
-        echo self::actionForm('delete','Move to trash',$row,true).'</div>';
+        echo self::actionForm('delete',ltText('move_to_trash'),$row,true).'</div>';
         if (in_array($kind,['contacts','vehicles','accounts','documents','playlists','lists','work_orders'],true)) {
             $related = $store->run('SELECT DISTINCT r.id,r.kind,r.title,r.starts FROM links l JOIN records r ON r.id=l.source
                 WHERE l.target=? AND r.owner=? AND r.deleted_at IS NULL ORDER BY r.starts DESC LIMIT 30',[$id,$owner])->fetchAll();
-            echo '<section class="panel widget"><h2>Linked records</h2>';
+            echo '<section class="panel widget"><h2>'.self::th('linked_records').'</h2>';
             foreach ($related as $link) {
                 echo '<a class="mini-row" href="'.self::href(['view'=>'record','kind'=>$link['kind'],'id'=>$link['id']]).'">'.
-                    self::h($link['title']).'<small>'.self::h(Catalog::LABELS[$link['kind']].' · '.self::dateLabel($link['starts'],$prefs)).'</small></a>';
+                    self::h($link['title']).'<small>'.self::h(Catalog::label($link['kind']).' · '.self::dateLabel($link['starts'],$prefs)).'</small></a>';
             }
             if (!$related) {
-                echo '<p>No records link here yet.</p>';
+                echo '<p>'.self::th('no_records_link_here_yet').'</p>';
             }
             echo '</section>';
         }
@@ -714,7 +737,7 @@ final class Views
 
     private static function actionForm(string $action,string $label,array $row,bool $confirm = false): string
     {
-        return '<form method="post" action="index.php" data-record-action'.($confirm ? ' data-confirm="Move this record to the trash?"' : '').'>'.
+        return '<form method="post" action="index.php" data-record-action'.($confirm ? ' data-confirm="'.self::th('move_this_record_to_the_trash').'"' : '').'>'.
             self::csrf().self::hidden('action',$action).self::hidden('kind',$row['kind']).self::hidden('id',$row['id']).
             self::hidden('revision',$row['revision']).'<button'.($confirm ? ' class="danger-button"' : '').'>'.self::h($label).'</button></form>';
     }
@@ -723,6 +746,7 @@ final class Views
     {
         $p = $row ? Store::payload($row) : [];
         $fields = Catalog::fields($kind,$prefs);
+        $defaults = Catalog::fields($kind);
         $auto = $row && !in_array($kind,['attachments','accounts','bank_accounts','cards','personal_profile','vehicles'],true);
         if ($quick) {
             $keys = match ($kind) {
@@ -731,7 +755,7 @@ final class Views
                 'notes'=>['content'],
                 'list_items'=>['list','quantity'],
                 'journal_entries'=>['time','content','rating'],
-                default=>throw new Problem('Quick add is unavailable for this module.'),
+                default=>throw new Problem(ltText('quick_add_is_unavailable_for_this')),
             };
             $fields = array_intersect_key($fields,array_flip($keys));
         }
@@ -741,8 +765,8 @@ final class Views
             self::hidden('id',$row['id'] ?? '').self::hidden('revision',$row['revision'] ?? '').'<div class="form-grid">';
         if ($kind !== 'intimacy_events') {
             $label = match ($kind) {
-                'contacts'=>'Display name (or enter first and last names)','attachments'=>'File title',
-                'music_tracks'=>'Song title','personal_profile'=>'Preferred name',default=>'Title',
+                'contacts'=>ltText('display_name_or_enter_first_and'),'attachments'=>ltText('file_title'),
+                'music_tracks'=>ltText('song_title'),'personal_profile'=>ltText('preferred_name'),default=>ltText('title'),
             };
             echo self::input('title',$label,$row['title'] ?? '','text','maxlength="180" '.($kind !== 'contacts' ? 'required' : ''));
         }
@@ -759,18 +783,18 @@ final class Views
                 $value = self::localKey($value,$prefs);
             }
             if ($kind === 'intimacy_events' && in_array($field,['question_1','rating_1'],true)) {
-                echo '<h2 class="wide">'.($field === 'question_1' ? 'Optional questionnaire' : 'Optional ratings').'</h2>';
+                echo '<h2 class="wide">'.($field === 'question_1' ? self::th('optional_questionnaire') : self::th('optional_ratings')).'</h2>';
             }
             if ($type === 'secret') {
                 $stored = isset($p['_private'][$field]);
                 echo '<div class="secret-field">'.self::input($field,$label,'','password','autocomplete="new-password" placeholder="'.
-                    ($stored ? '••••••••' : 'Add protected value').'".').'<div class="actions">';
+                    ($stored ? '••••••••' : self::th('add_protected_value')).'".').'<div class="actions">';
                 if ($stored) {
                     echo '<button type="button" data-reveal data-kind="'.self::h($kind).'" data-id="'.self::h($row['id']).'" data-field="'.
-                        self::h($field).'">Reveal</button>'.self::checkbox('clear_'.$field,'Clear on save');
+                        self::h($field).'">'.self::th('reveal').'</button>'.self::checkbox('clear_'.$field,ltText('clear_on_save'));
                 }
                 if ($field === 'password') {
-                    echo '<button type="button" data-password-generator>Generate password</button>';
+                    echo '<button type="button" data-password-generator>'.self::th('generate_password').'</button>';
                 }
                 echo '</div></div>';
                 continue;
@@ -786,8 +810,8 @@ final class Views
             }
             echo match ($type) {
                 'area','private'=>self::area($field,$label.($field==='content' && in_array($kind,['journal_entries','daily_logs'],true)
-                    ? ' · use *italic* or **bold**' : ''),$value,'maxlength="24000"'),
-                'select','private-choice'=>self::select($field,$label,self::options($options),$value),
+                    ? ltText('use_italic_or_bold') : ''),$value,'maxlength="24000"'),
+                'select','private-choice'=>self::select($field,$label,self::options($options,$defaults[$field][2]),$value),
                 'rating','private-rating'=>self::select($field,$label,array_combine(range(1,10),range(1,10)),$value),
                 'check'=>self::checkbox($field,$label,$field === 'all_day' && !$row ? true : (bool)$value),
                 'money'=>self::input($field,$label.' ('.($value ? $value['currency'] : $prefs['currency']).')',
@@ -803,8 +827,8 @@ final class Views
                 default=>self::input($field,$label,$value),
             };
         }
-        echo '</div><div class="actions editor-actions"><button class="primary" type="submit">Save record</button>'.
-            '<output aria-live="polite" class="save-status">'.($auto ? 'Edits save automatically.' : '').'</output></div></form>';
+        echo '</div><div class="actions editor-actions"><button class="primary" type="submit">'.self::th('save_record').'</button>'.
+            '<output aria-live="polite" class="save-status">'.($auto ? self::th('edits_save_automatically') : '').'</output></div></form>';
     }
 
     private static function businessSummary(Store $store,string $owner,array $prefs): void
@@ -820,10 +844,10 @@ final class Views
             AND json_extract(payload,'$.status') IN ('quoted','paid','in progress')",[$owner])->fetchColumn();
         $low = $store->run("SELECT COUNT(*) FROM records WHERE owner=? AND kind='business_inventory' AND deleted_at IS NULL
             AND CAST(json_extract(payload,'$.quantity') AS INTEGER)<=CAST(json_extract(payload,'$.threshold') AS INTEGER)",[$owner])->fetchColumn();
-        echo '<div class="panel business-summary"><div><strong>Paid this month</strong><span>'.
+        echo '<div class="panel business-summary"><div><strong>'.self::th('paid_this_month').'</strong><span>'.
             self::h($totals ? implode(' · ',array_map(static fn($a)=>$a['currency'].' '.Catalog::decimal($a),$totals)) : '—').
-            '</span></div><div><strong>Outstanding work</strong><span>'.self::h($open).
-            '</span></div><div><strong>Low-stock items</strong><span>'.self::h($low).'</span></div></div>';
+            '</span></div><div><strong>'.self::th('outstanding_work').'</strong><span>'.self::h($open).
+            '</span></div><div><strong>'.self::th('low_stock_items').'</strong><span>'.self::h($low).'</span></div></div>';
     }
 
     public static function search(Store $store,string $owner): void
@@ -834,10 +858,10 @@ final class Views
             'intimacy_events','daily_logs','accounts','bank_accounts','cards','personal_profile','phone_history','email_history',
         ]));
         $choices = in_array($kind,$kinds,true) ? [$kind] : $kinds;
-        self::heading('WORKSPACE','Search','Find records across your workspace. Search private entry text within its journal.');
+        self::heading(ltText('workspace'),ltText('search'),ltText('find_records_across_your_workspace_search'));
         echo '<form class="panel filters" method="get" action="index.php">'.self::hidden('view','search').
-            self::input('q','Search text',$q,'search','required maxlength="180"').
-            self::select('kind','Module',array_intersect_key(Catalog::LABELS,array_flip($kinds)),$kind).'<button class="primary">Search</button></form>';
+            self::input('q',ltText('search_text'),$q,'search','required maxlength="180"').
+            self::select('kind',ltText('module'),array_intersect_key(Catalog::labels(),array_flip($kinds)),$kind).'<button class="primary">'.self::th('search').'</button></form>';
         if ($q === '') {
             return;
         }
@@ -845,12 +869,12 @@ final class Views
         $rows = $store->run("SELECT id,kind,title,search FROM records WHERE owner=? AND deleted_at IS NULL AND kind IN ($slots)
             AND instr(search,?)>0 ORDER BY kind,updated_at DESC LIMIT 100",[$owner,...$choices,mb_strtolower($q)])->fetchAll();
         if (!$rows) {
-            echo '<div class="panel empty"><h2>No matches</h2><p>Try a different phrase or module.</p></div>';
+            echo '<div class="panel empty"><h2>'.self::th('no_matches').'</h2><p>'.self::th('try_a_different_phrase_or_module').'</p></div>';
         }
         $last = '';
         foreach ($rows as $row) {
             if ($row['kind'] !== $last) {
-                echo '<h2 class="month-label">'.self::h(Catalog::LABELS[$row['kind']]).'</h2>';
+                echo '<h2 class="month-label">'.self::h(Catalog::label($row['kind'])).'</h2>';
                 $last = $row['kind'];
             }
             $index = mb_stripos($row['search'],$q);
@@ -862,26 +886,26 @@ final class Views
 
     public static function banks(Store $store,string $owner): void
     {
-        self::heading('VAULT','Bank comparison','See which access fields are on file without revealing them.');
+        self::heading(ltText('vault'),ltText('bank_comparison'),ltText('see_which_access_fields_are_on'));
         self::tabs('Vault','');
         $groups = [];
         foreach ($store->run("SELECT * FROM records WHERE owner=? AND kind IN ('bank_accounts','cards') AND deleted_at IS NULL",[$owner]) as $row) {
-            $groups[Store::payload($row)['institution'] ?: 'Institution unspecified'][] = $row;
+            $groups[Store::payload($row)['institution'] ?: ltText('institution_unspecified')][] = $row;
         }
         ksort($groups,SORT_NATURAL | SORT_FLAG_CASE);
         if (!$groups) {
-            echo '<div class="panel empty"><h2>No banking records</h2>'.self::button('Add a bank record',['view'=>'record','kind'=>'bank_accounts'],true).'</div>';
+            echo '<div class="panel empty"><h2>'.self::th('no_banking_records').'</h2>'.self::button(ltText('add_a_bank_record'),['view'=>'record','kind'=>'bank_accounts'],true).'</div>';
         }
         foreach ($groups as $institution=>$rows) {
             echo '<h2 class="month-label">'.self::h($institution).'</h2>';
             foreach ($rows as $row) {
                 $p = Store::payload($row);
-                $access = array_intersect_key(['username'=>'Username','password'=>'Password','pin'=>'PIN','number'=>'Account number','routing'=>'Routing number'],
+                $access = array_intersect_key(['username'=>ltText('username'),'password'=>ltText('password'),'pin'=>ltText('pin'),'number'=>ltText('account_number'),'routing'=>ltText('routing_number')],
                     $p['_private'] ?? []);
                 echo '<article class="panel record-row"><div class="row-content"><a class="row-title" href="'.
                     self::href(['view'=>'record','kind'=>$row['kind'],'id'=>$row['id']]).'">'.self::h($row['title']).
-                    '</a><small>'.self::h(implode(' · ',array_filter([$p['subtype'],$p['expiry'],implode(', ',$access)]))).'</small></div>'.
-                    '<span class="pill">'.self::h(!empty($p['last_four']) ? '•••• '.$p['last_four'] : 'No card digits').'</span></article>';
+                    '</a><small>'.self::h(implode(' · ',array_filter([ltOption($p['subtype'] ?? ''),$p['expiry'],implode(', ',$access)]))).'</small></div>'.
+                    '<span class="pill">'.self::h(!empty($p['last_four']) ? '•••• '.$p['last_four'] : ltText('no_card_digits')).'</span></article>';
             }
         }
     }
@@ -889,58 +913,58 @@ final class Views
     public static function settings(Store $store,array $user,array $result): void
     {
         $p = Store::payload($user);
-        self::heading('WORKSPACE','Settings','Preferences, portability and installation tools.');
-        echo '<section class="panel widget"><h2>Personal preferences</h2><form method="post" action="index.php">'.
+        self::heading(ltText('workspace'),ltText('settings'),ltText('preferences_portability_and_installation_tools'));
+        echo '<section class="panel widget"><h2>'.self::th('personal_preferences').'</h2><form method="post" action="index.php">'.
             self::csrf().self::hidden('action','settings').self::hidden('operation','preferences').'<div class="form-grid">'.
-            self::select('theme','Appearance',self::options(['system','light','dark']),$p['theme'],false).self::timeZones($p['zone']).
-            self::input('currency','Currency',$p['currency'],'text','required pattern="[A-Z]{3}"').
-            self::select('format','Date format',self::options(['Y-m-d','m/d/Y','d/m/Y']),$p['format'],false);
-        foreach (['relationships'=>'Additional contact relationships','account_types'=>'Additional account types',
-            'intimacy_types'=>'Additional intimacy event types','intimacy_questions'=>'Additional private questionnaire prompts'] as $key=>$label) {
-            echo self::area($key,$label.' (one per line)',$p[$key] ?? '');
+            self::select('theme',ltText('appearance'),self::options(['system','light','dark']),$p['theme'],false).self::timeZones($p['zone']).
+            self::input('currency',ltText('currency'),$p['currency'],'text','required pattern="[A-Z]{3}"').
+            self::select('format',ltText('date_format'),self::options(['Y-m-d','m/d/Y','d/m/Y']),$p['format'],false);
+        foreach (['relationships'=>ltText('additional_contact_relationships'),'account_types'=>ltText('additional_account_types'),
+            'intimacy_types'=>ltText('additional_intimacy_event_types'),'intimacy_questions'=>ltText('additional_private_questionnaire_prompts')] as $key=>$label) {
+            echo self::area($key,$label.ltText('one_per_line'),$p[$key] ?? '');
         }
-        echo '</div><div class="actions editor-actions"><button class="primary">Save preferences</button></div></form></section>'.
-            '<section class="panel widget"><h2>Data portability</h2><p>General exports omit private journal and intimacy entries and protected fields.</p><div class="actions">'.
-            '<form method="post" action="index.php">'.self::csrf().self::hidden('action','export').'<button>Export JSON</button></form>'.
+        echo '</div><div class="actions editor-actions"><button class="primary">'.self::th('save_preferences').'</button></div></form></section>'.
+            '<section class="panel widget"><h2>'.self::th('data_portability').'</h2><p>'.self::th('general_exports_omit_private_journal_and').'</p><div class="actions">'.
+            '<form method="post" action="index.php">'.self::csrf().self::hidden('action','export').'<button>'.self::th('export_json').'</button></form>'.
             '<form method="post" action="index.php">'.self::csrf().self::hidden('action','settings').self::hidden('operation','seed').
-            '<button>Load fictional demo</button></form></div></section>';
+            '<button>'.self::th('load_fictional_demo').'</button></form></div></section>';
         if ($p['role'] !== 'admin') {
             return;
         }
         $output = $_SESSION['maintenance'] ?? null;
         unset($_SESSION['maintenance']);
-        echo '<section class="panel widget"><h2>Installation &amp; backup</h2><p>Configuration is active. Restart Apache after changing its file.</p>'.
-            '<details><summary>Show redacted configuration</summary><pre>'.self::h(json_encode(Config::public($result),JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES)).'</pre></details>';
+        echo '<section class="panel widget"><h2>'.self::th('installation_backup').'</h2><p>'.self::th('configuration_is_active_restart_apache_after').'</p>'.
+            '<details><summary>'.self::th('show_redacted_configuration').'</summary><pre>'.self::h(json_encode(Config::public($result),JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES)).'</pre></details>';
         if ($output !== null) {
             echo '<pre role="status">'.self::h(json_encode($output,JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES)).'</pre>';
         }
         echo '<form class="form-grid" method="post" action="index.php" data-maintenance>'.self::csrf().self::hidden('action','settings').
-            self::select('operation','Action',['verify'=>'Verify backup','repair'=>'Queue repair','drain'=>'Drain backup queue','migrate'=>'Apply migrations',
-                'backup'=>'Create backup','restore'=>'Restore backup','reconfigure'=>'Reconfiguration instructions'],'verify',false).
-            self::input('backup','Backup identifier','','text','placeholder="YYYYMMDDTHHMMSSZ-abcdef"').
-            self::checkbox('from_mirror','Restore from the MySQL dump').
-            self::input('password','Confirm application password','','password','required autocomplete="current-password"').
-            '<div class="actions"><button>Run action</button></div></form></section>';
+            self::select('operation',ltText('action'),['verify'=>ltText('verify_backup'),'repair'=>ltText('queue_repair'),'drain'=>ltText('drain_backup_queue'),'migrate'=>ltText('apply_migrations'),
+                'backup'=>ltText('create_backup'),'restore'=>ltText('restore_backup'),'reconfigure'=>ltText('reconfiguration_instructions')],'verify',false).
+            self::input('backup',ltText('backup_identifier'),'','text','placeholder="YYYYMMDDTHHMMSSZ-abcdef"').
+            self::checkbox('from_mirror',ltText('restore_from_the_mysql_dump')).
+            self::input('password',ltText('confirm_application_password'),'','password','required autocomplete="current-password"').
+            '<div class="actions"><button>'.self::th('run_action').'</button></div></form></section>';
         $mirror = $store->config['mirror'];
-        echo '<section class="panel widget"><h2>Change backup mode</h2><p>Your SQLite database and existing users stay in place.</p>'.
+        echo '<section class="panel widget"><h2>'.self::th('change_backup_mode').'</h2><p>'.self::th('your_sqlite_database_and_existing_users').'</p>'.
             '<form class="form-grid" method="post" action="index.php">'.self::csrf().self::hidden('action','settings').self::hidden('operation','mirror_config').
-            self::select('mode','Storage',['sqlite'=>'SQLite only','dual'=>'SQLite with MySQL backup'],$store->config['mode'],false).
-            self::input('mysql_host','MySQL host',$mirror['host'] ?? '127.0.0.1').
-            self::input('mysql_port','MySQL port',$mirror['port'] ?? 3306,'number','min="1" max="65535"').
-            self::input('mysql_database','MySQL database',$mirror['database'] ?? 'lifetools').
-            self::input('mysql_user','MySQL user',$mirror['user'] ?? 'lifetools').
-            self::input('mysql_password','New MySQL password (leave empty to keep)','','password','autocomplete="new-password"').
-            self::checkbox('clear_mysql_password','Use an empty MySQL password').
-            self::input('password','Confirm application password','','password','required autocomplete="current-password"').
-            '<div class="actions"><button>Save backup mode</button></div></form></section>'.
-            '<section class="panel widget"><h2>Create an application user</h2>'.
-            '<p>Each user gets a separate workspace. Administrators manage this installation and its backups.</p><form class="form-grid" method="post" action="index.php">'.
+            self::select('mode',ltText('storage'),['sqlite'=>ltText('sqlite_only'),'dual'=>ltText('sqlite_with_mysql_backup')],$store->config['mode'],false).
+            self::input('mysql_host',ltText('mysql_host'),$mirror['host'] ?? '127.0.0.1').
+            self::input('mysql_port',ltText('mysql_port'),$mirror['port'] ?? 3306,'number','min="1" max="65535"').
+            self::input('mysql_database',ltText('mysql_database'),$mirror['database'] ?? 'lifetools').
+            self::input('mysql_user',ltText('mysql_user'),$mirror['user'] ?? 'lifetools').
+            self::input('mysql_password',ltText('new_mysql_password_leave_empty_to'),'','password','autocomplete="new-password"').
+            self::checkbox('clear_mysql_password',ltText('use_an_empty_mysql_password')).
+            self::input('password',ltText('confirm_application_password'),'','password','required autocomplete="current-password"').
+            '<div class="actions"><button>'.self::th('save_backup_mode').'</button></div></form></section>'.
+            '<section class="panel widget"><h2>'.self::th('create_an_application_user').'</h2>'.
+            '<p>'.self::th('each_user_gets_a_separate_workspace').'</p><form class="form-grid" method="post" action="index.php">'.
             self::csrf().self::hidden('action','settings').self::hidden('operation','create_user').
-            self::input('login','New login','','text','required autocomplete="off"').
-            self::select('role','Role',['standard'=>'Standard user','admin'=>'Administrator'],'standard',false).
-            self::input('new_password','New user password','','password','required minlength="12" maxlength="72" autocomplete="new-password"').
-            self::input('password','Your application password','','password','required autocomplete="current-password"').
-            '<div class="actions"><button>Create user</button></div></form></section>';
+            self::input('login',ltText('new_login'),'','text','required autocomplete="off"').
+            self::select('role',ltText('role'),['standard'=>ltText('standard_user'),'admin'=>ltText('administrator')],'standard',false).
+            self::input('new_password',ltText('new_user_password'),'','password','required minlength="12" maxlength="72" autocomplete="new-password"').
+            self::input('password',ltText('your_application_password'),'','password','required autocomplete="current-password"').
+            '<div class="actions"><button>'.self::th('create_user').'</button></div></form></section>';
     }
 }
 

@@ -25,14 +25,14 @@ final class Mirror
             $connection->exec('SET SESSION innodb_lock_wait_timeout=2');
             return $connection;
         } catch (PDOException) {
-            throw new Problem('MySQL is unreachable or rejected the configured credentials/database.');
+            throw new Problem(ltText('mysql_is_unreachable_or_rejected_the'));
         }
     }
 
     public function locked(callable $work): mixed
     {
         if ($this->store->config['mode'] !== 'dual') {
-            throw new Problem('MySQL backup is not configured.');
+            throw new Problem(ltText('mysql_backup_is_not_configured'));
         }
         $mysql = self::connect($this->store->config['mirror']);
         $lock = 'lifetools:' . substr(hash('sha256',$this->store->config['mirror']['database']),0,40);
@@ -41,7 +41,7 @@ final class Mirror
         $acquired = $stmt->fetchColumn();
         $stmt->closeCursor();
         if ((int)$acquired !== 1) {
-            throw new Problem('Another backup worker is active. Try again.');
+            throw new Problem(ltText('another_backup_worker_is_active_try'));
         }
         try {
             $this->migrate($mysql);
@@ -65,7 +65,7 @@ final class Mirror
         $version = (int)$query->fetchColumn();
         $query->closeCursor();
         if ($version > Store::VERSION) {
-            throw new Problem('MySQL schema is newer than this release.');
+            throw new Problem(ltText('mysql_schema_is_newer_than_this'));
         }
         if ($version === 0) {
             $columns = [];
@@ -82,7 +82,7 @@ final class Mirror
             FROM information_schema.COLUMNS WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME='lt_records' ORDER BY ORDINAL_POSITION");
         $columns = $query->fetchAll();
         if (array_column($columns,'COLUMN_NAME') !== array_keys(self::TYPES)) {
-            throw new Problem('MySQL schema drift: backup columns differ.');
+            throw new Problem(ltText('mysql_schema_drift_backup_columns_differ'));
         }
         foreach ($columns as $column) {
             $field = $column['COLUMN_NAME'];
@@ -93,7 +93,7 @@ final class Mirror
             if ($type !== self::TYPES[$field]
                 || $column['IS_NULLABLE'] !== ($field === 'deleted_at' ? 'YES' : 'NO')
                 || ($column['COLUMN_KEY'] === 'PRI') !== ($field === 'id')) {
-                throw new Problem("MySQL schema drift: column $field differs.");
+                throw new Problem(ltText('mysql_schema_drift_column_field_differs',['field'=>$field]));
             }
         }
         $query = $mysql->query("SELECT ENGINE,TABLE_COLLATION FROM information_schema.TABLES
@@ -101,7 +101,7 @@ final class Mirror
         $table = $query->fetch();
         $query->closeCursor();
         if ($table['ENGINE'] !== 'InnoDB' || $table['TABLE_COLLATION'] !== 'utf8mb4_unicode_ci') {
-            throw new Problem('MySQL schema drift: engine or collation differs.');
+            throw new Problem(ltText('mysql_schema_drift_engine_or_collation'));
         }
         $fingerprint = $this->store->meta('installation');
         if ($version === 0) {
@@ -114,7 +114,7 @@ final class Mirror
         $found = $query->fetchColumn();
         $query->closeCursor();
         if ($found !== $fingerprint) {
-            throw new Problem('This MySQL database belongs to another installation.');
+            throw new Problem(ltText('this_mysql_database_belongs_to_another'));
         }
     }
 
@@ -179,7 +179,7 @@ final class Mirror
                     $store->meta('sync_failures','0');
                 });
             } catch (Throwable $error) {
-                $message = $error instanceof Problem ? $error->getMessage() : 'MySQL backup operation failed.';
+                $message = $error instanceof Problem ? $error->getMessage() : ltText('mysql_backup_operation_failed');
                 $store->transaction(function () use ($store,$now,$message): void {
                     $failures = min(10,1+(int)$store->meta('sync_failures'));
                     $next = $now + min(30,2 ** ($failures-1));
@@ -211,7 +211,7 @@ final class Mirror
     {
         $store = $this->store;
         if ($store->config['mode'] !== 'dual') {
-            return ['ok'=>true,'message'=>'MySQL backup is not configured.'];
+            return ['ok'=>true,'message'=>ltText('mysql_backup_is_not_configured')];
         }
         $primary = [];
         $counts = ['sqlite'=>[],'mysql'=>[]];

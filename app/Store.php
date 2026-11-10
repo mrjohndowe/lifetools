@@ -13,7 +13,7 @@ final class Store
     public function __construct(public readonly array $config, bool $create = false)
     {
         if (!$create && !is_file($config['path'])) {
-            throw new Problem('The SQLite database is missing. Restore the installation before continuing.');
+            throw new Problem(ltText('the_sqlite_database_is_missing_restore'));
         }
         $this->db = new PDO('sqlite:' . $config['path'], null, null, [
             PDO::ATTR_ERRMODE=>PDO::ERRMODE_EXCEPTION,
@@ -52,7 +52,7 @@ final class Store
         $this->db->exec('CREATE TABLE IF NOT EXISTS migrations (version INTEGER PRIMARY KEY, applied_at TEXT NOT NULL)');
         $version = (int)$this->db->query('SELECT COALESCE(MAX(version),0) FROM migrations')->fetchColumn();
         if ($version > self::VERSION) {
-            throw new Problem('This database was created by a newer version of LifeTools.');
+            throw new Problem(ltText('this_database_was_created_by_a'));
         }
         if ($version === self::VERSION) {
             return;
@@ -113,7 +113,7 @@ final class Store
     {
         $expected = $id . ':' . hash_hmac('sha256', $id, $this->config['key']);
         if (!hash_equals($expected, $this->meta('installation') ?? '')) {
-            throw new Problem('The configured database or encryption key does not match this installation.');
+            throw new Problem(ltText('the_configured_database_or_encryption_key'));
         }
     }
 
@@ -177,7 +177,7 @@ final class Store
         $row = $this->run('SELECT * FROM records WHERE id=? AND owner=?' .
             ($trash ? '' : ' AND deleted_at IS NULL'), [$id,$owner])->fetch();
         if (!$row || ($kind !== null && $row['kind'] !== $kind)) {
-            throw new Problem('Record could not be found.');
+            throw new Problem(ltText('record_could_not_be_found'));
         }
         return $row;
     }
@@ -248,13 +248,13 @@ final class Store
     {
         $login = strtolower(trim($login));
         if (!preg_match('/^[a-z0-9][a-z0-9_.@-]{2,79}$/D', $login)) {
-            throw new Problem('Use 3–80 letters, numbers, or . _ @ - for the login.');
+            throw new Problem(ltText('use_3_80_letters_numbers_or'));
         }
         if (strlen($password) < 12 || strlen($password) > 72 || str_contains($password, "\0")) {
-            throw new Problem('Use a password between 12 and 72 bytes.');
+            throw new Problem(ltText('use_a_password_between_12_and'));
         }
         if ($this->user($login)) {
-            throw new Problem('This login is already in use.');
+            throw new Problem(ltText('this_login_is_already_in_use'));
         }
         $id = ltUuid();
         $algorithm = defined('PASSWORD_ARGON2ID') ? PASSWORD_ARGON2ID : PASSWORD_BCRYPT;

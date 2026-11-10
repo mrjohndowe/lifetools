@@ -62,7 +62,7 @@ final class Config
                 $raw = @file_get_contents($path);
                 $data = $raw === false ? null : json_decode($raw, true);
                 if (!is_array($data) || array_is_list($data)) {
-                    throw new Problem('config: expected a readable JSON object.');
+                    throw new Problem(ltText('config_expected_a_readable_json_object'));
                 }
                 return ['status'=>'OK', 'source'=>$source, 'path'=>$path, 'config'=>self::validate($data, $flags)];
             } catch (Problem $e) {
@@ -73,10 +73,10 @@ final class Config
         if ($mode !== null && $mode !== '' && !in_array($mode,['sqlite','dual'],true)) {
             return ['status'=>'INVALID','source'=>isset($flags['db-mode']) ? 'cli' : 'env',
                 'path'=>self::path('config/lifetools.config.json'),
-                'error'=>'dbMode: expected sqlite or dual. SQLite is the only permitted primary database.'];
+                'error'=>ltText('dbmode_expected_sqlite_or_dual_sqlite')];
         }
         return ['status'=>'MISSING', 'source'=>'none', 'path'=>self::path('config/lifetools.config.json'),
-            'error'=>'Open LifeTools on localhost to run onboarding, or run php bin/lifetools install.'];
+            'error'=>ltText('open_lifetools_on_localhost_to_run')];
     }
 
     public static function secretDirectory(): string
@@ -129,7 +129,7 @@ final class Config
                 $read = @file_get_contents($path);
                 return $read === false ? null : rtrim($read, "\r\n");
             }
-            throw new Problem("$name: expected a readable secret file outside the web root.");
+            throw new Problem(ltText('name_expected_a_readable_secret_file',['name'=>$name]));
         }
         return $value;
     }
@@ -137,12 +137,12 @@ final class Config
     public static function validate(array $raw, array $flags = []): array
     {
         if (($raw['version'] ?? null) !== 1) {
-            throw new Problem('version: expected integer 1.');
+            throw new Problem(ltText('version_expected_integer_1'));
         }
         $mysql = $raw['mysql'] ?? [];
         $app = $raw['app'] ?? [];
         if (!is_array($mysql) || !is_array($app)) {
-            throw new Problem('mysql and app: expected objects.');
+            throw new Problem(ltText('mysql_and_app_expected_objects'));
         }
         $flagValues = [];
         foreach (self::FLAGS as $flag => $variable) {
@@ -157,11 +157,11 @@ final class Config
         };
         $mode = $pick('DB_MODE', $raw['dbMode'] ?? null, 'sqlite');
         if (!in_array($mode, ['sqlite','dual'], true)) {
-            throw new Problem('dbMode: expected sqlite or dual. SQLite is the only permitted primary database.');
+            throw new Problem(ltText('dbmode_expected_sqlite_or_dual_sqlite'));
         }
         $path = $pick('SQLITE_PATH', $raw['sqlitePath'] ?? null, './data/lifetools.sqlite');
         if (!is_string($path) || trim($path) === '' || str_contains($path, "\0")) {
-            throw new Problem('sqlitePath: expected a database file path.');
+            throw new Problem(ltText('sqlitepath_expected_a_database_file_path'));
         }
         $path = self::path($path);
         $parent = realpath(dirname($path));
@@ -171,17 +171,17 @@ final class Config
         if ($parent === false || !ltWritable($parent) || is_dir($path)
             || (file_exists($path) && (!is_file($path) || !ltWritable($path)))
             || (!$protected && !self::outsideWeb($parent))) {
-            throw new Problem('sqlitePath: expected a writable file in data/ or a directory outside the web root.');
+            throw new Problem(ltText('sqlitepath_expected_a_writable_file_in'));
         }
         $path = $parent . DIRECTORY_SEPARATOR . basename($path);
         $key = $pick('APP_ENCRYPTION_KEY', $app['encryptionKey'] ?? null);
         $key = is_string($key) ? base64_decode($key, true) : false;
         if ($key === false || strlen($key) !== 32) {
-            throw new Problem('app.encryptionKey: expected exactly 32 bytes encoded as base64.');
+            throw new Problem(ltText('app_encryptionkey_expected_exactly_32_bytes'));
         }
         $session = $pick('SESSION_SECRET', $app['sessionSecret'] ?? null);
         if (!is_string($session) || strlen($session) < 32) {
-            throw new Problem('app.sessionSecret: expected at least 32 characters.');
+            throw new Problem(ltText('app_sessionsecret_expected_at_least_32'));
         }
         $port = self::port($pick('PORT', $app['port'] ?? null, 3000), 'app.port');
         $zone = $pick('TZ', $app['timeZone'] ?? null, 'UTC');
@@ -190,19 +190,19 @@ final class Config
         $currency = $app['currency'] ?? 'USD';
         $format = $app['dateFormat'] ?? 'Y-m-d';
         if (!in_array($zone, DateTimeZone::listIdentifiers(DateTimeZone::ALL_WITH_BC), true)) {
-            throw new Problem('app.timeZone: expected an IANA time zone.');
+            throw new Problem(ltText('app_timezone_expected_an_iana_time'));
         }
         if (!in_array($theme, ['system','light','dark'], true)) {
-            throw new Problem('app.theme: expected system, light, or dark.');
+            throw new Problem(ltText('app_theme_expected_system_light_or'));
         }
         if (!is_string($name) || trim($name) === '' || strlen($name) > 80) {
-            throw new Problem('app.name: expected 1–80 characters.');
+            throw new Problem(ltText('app_name_expected_1_80_characters'));
         }
         if (!is_string($currency) || !preg_match('/^[A-Z]{3}$/D', $currency)) {
-            throw new Problem('app.currency: expected a three-letter currency code.');
+            throw new Problem(ltText('app_currency_expected_a_three_letter'));
         }
         if (!in_array($format, ['Y-m-d','m/d/Y','d/m/Y'], true)) {
-            throw new Problem('app.dateFormat: expected Y-m-d, m/d/Y, or d/m/Y.');
+            throw new Problem(ltText('app_dateformat_expected_y_m_d'));
         }
         $mirror = [];
         if ($mode === 'dual') {
@@ -215,7 +215,7 @@ final class Config
                 };
                 if (!is_string($value) || ($nameKey !== 'password' && trim($value) === '')
                     || ($pattern !== null && !preg_match($pattern, $value))) {
-                    throw new Problem("mysql.$nameKey: invalid connection setting.");
+                    throw new Problem(ltText('mysql_namekey_invalid_connection_setting',['nameKey'=>$nameKey]));
                 }
                 $mirror[$nameKey] = $value;
             }
@@ -228,7 +228,7 @@ final class Config
     {
         $number = filter_var($value, FILTER_VALIDATE_INT, ['options'=>['min_range'=>1,'max_range'=>65535]]);
         if ($number === false) {
-            throw new Problem("$field: expected an integer from 1 to 65535.");
+            throw new Problem(ltText('field_expected_an_integer_from_1',['field'=>$field]));
         }
         return $number;
     }
@@ -239,11 +239,11 @@ final class Config
         return ltLock(LT_ROOT . '/storage/setup.lock', static function () use ($path,$input): array {
             $raw = json_decode((string)@file_get_contents($path),true);
             if (!is_array($raw)) {
-                throw new Problem('Restore the protected configuration before changing the mirror.');
+                throw new Problem(ltText('restore_the_protected_configuration_before_changing'));
             }
             $mode = $input['mode'] ?? '';
             if (!in_array($mode,['sqlite','dual'],true)) {
-                throw new Problem('Choose SQLite only or SQLite with MySQL backup.');
+                throw new Problem(ltText('choose_sqlite_only_or_sqlite_with'));
             }
             $raw['dbMode'] = $mode;
             $password = Catalog::text($input['mysql_password'] ?? '',1024,true);
@@ -264,7 +264,7 @@ final class Config
                     $directory = self::secretDirectory();
                     if ((!is_dir($directory) && !@mkdir($directory,0700,true))
                         || !self::outsideWeb($directory) || !ltWritable($directory)) {
-                        throw new Problem('The private key directory must be writable and outside the web root.');
+                        throw new Problem(ltText('the_private_key_directory_must_be'));
                     }
                     $secretPath = realpath($directory) . '/' . ltUuid() . '-mysql.key';
                     ltAtomic($secretPath,$password);
@@ -277,7 +277,7 @@ final class Config
                 }
                 throw $e;
             }
-            return ['message'=>'Configuration saved. Restart Apache and the scheduled worker after making configuration changes.',
+            return ['message'=>ltText('configuration_saved_restart_apache_and_the'),
                 'configuredMode'=>$mode,'effectiveMode'=>$effective['mode']];
         });
     }

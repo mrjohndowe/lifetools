@@ -8,16 +8,16 @@ final class Install
     public static function requirements(): void
     {
         if (PHP_VERSION_ID < 80100) {
-            throw new Problem('LifeTools requires PHP 8.1 or later.');
+            throw new Problem(ltText('lifetools_requires_php_8_1_or'));
         }
         foreach (['pdo_sqlite','sqlite3','pdo_mysql','openssl','mbstring','fileinfo','json'] as $extension) {
             if (!extension_loaded($extension)) {
-                throw new Problem("Enable extension=$extension in php.ini, then restart Apache.");
+                throw new Problem(ltText('enable_extension_extension_in_php_ini',['extension'=>$extension]));
             }
         }
         foreach (['config','data','backups','uploads','storage'] as $dir) {
             if (!ltWritable(LT_ROOT . '/' . $dir)) {
-                throw new Problem("Grant PHP write access to the $dir/ directory.");
+                throw new Problem(ltText('grant_php_write_access_to_the',['dir'=>$dir]));
             }
         }
     }
@@ -53,14 +53,14 @@ final class Install
         $state = self::state($result);
         if ($state['phase'] !== 'configured') {
             throw new Problem($state['phase'] === 'recovery'
-                ? 'Recovery required. Restore the original config, encryption key and SQLite database. See SECURITY.md.'
-                : ($result['error'] ?? 'Finish onboarding before opening LifeTools.'));
+                ? ltText('recovery_required_restore_the_original_config')
+                : ($result['error'] ?? ltText('finish_onboarding_before_opening_lifetools')));
         }
         $store = new Store($result['config']);
         try {
             $store->checkInstallation($state['id']);
         } catch (PDOException) {
-            throw new Problem('The configured SQLite file does not contain this installation. Restore the original database.');
+            throw new Problem(ltText('the_configured_sqlite_file_does_not'));
         }
         $store->migrate();
         $store->prepareMode();
@@ -73,14 +73,14 @@ final class Install
             self::requirements();
             $found = Config::detect($flags);
             if (in_array(self::state($found)['phase'],['configured','recovery'],true)) {
-                throw new Problem('Onboarding is locked for this installation.');
+                throw new Problem(ltText('onboarding_is_locked_for_this_installation'));
             }
             $password = Catalog::text($input['password'] ?? '',72,true);
             if (strlen($password) < 12 || $password !== ($input['confirmation'] ?? '')) {
-                throw new Problem('Enter matching passwords with at least 12 characters.');
+                throw new Problem(ltText('enter_matching_passwords_with_at_least'));
             }
             if (($input['key_saved'] ?? '') !== '1') {
-                throw new Problem('Confirm that you saved the encryption key.');
+                throw new Problem(ltText('confirm_that_you_saved_the_encryption'));
             }
             $secret = Catalog::text($input['key'] ?? '',100,true);
             $raw = [
@@ -102,14 +102,14 @@ final class Install
             $store->migrate();
             if ($store->meta('installation') !== null
                 || $store->run("SELECT 1 FROM records WHERE kind='users' LIMIT 1")->fetchColumn()) {
-                throw new Problem('This database already belongs to an installation. Follow the recovery instructions.');
+                throw new Problem(ltText('this_database_already_belongs_to_an'));
             }
             $directory = Config::secretDirectory();
             if (!is_dir($directory) && !@mkdir($directory,0700,true) && !is_dir($directory)) {
-                throw new Problem('Create a writable private key directory outside the web root, or set LIFETOOLS_KEY_DIR.');
+                throw new Problem(ltText('create_a_writable_private_key_directory'));
             }
             if (!ltWritable($directory) || !Config::outsideWeb($directory)) {
-                throw new Problem('The private key directory must be writable and outside the web root.');
+                throw new Problem(ltText('the_private_key_directory_must_be'));
             }
             $directory = realpath($directory);
             $id = ltUuid();

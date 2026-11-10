@@ -7,7 +7,7 @@ final class Planner
     {
         $date = DateTimeImmutable::createFromFormat('!Y-m-d', $value, new DateTimeZone('UTC'));
         if (!$date || $date->format('Y-m-d') !== $value || (int)$date->format('Y') < 1) {
-            throw new Problem('Enter a valid date.');
+            throw new Problem(ltText('enter_a_valid_date'));
         }
         return $date;
     }
@@ -16,7 +16,7 @@ final class Planner
     {
         $time = DateTimeImmutable::createFromFormat('!Y-m-d\TH:i', $value, $zone);
         if (!$time || $time->format('Y-m-d\TH:i') !== $value || (int)$time->format('Y') < 1) {
-            throw new Problem('Enter a valid local time. The selected time may fall inside a daylight-saving gap.');
+            throw new Problem(ltText('enter_a_valid_local_time_the'));
         }
         return $time;
     }
@@ -34,16 +34,16 @@ final class Planner
         $end = $p['end'] === '' ? $start
             : ($allDay ? self::date(substr($p['end'],0,10)) : self::local($p['end'],$zone));
         if ($end < $start) {
-            throw new Problem('The event end must follow the start.');
+            throw new Problem(ltText('the_event_end_must_follow_the'));
         }
         if ($p['until'] !== '' && $p['until'] < $start->format('Y-m-d')) {
-            throw new Problem('The recurrence end date must follow the start.');
+            throw new Problem(ltText('the_recurrence_end_date_must_follow'));
         }
         $p['_starts'] = $allDay ? $start->format('Y-m-d') : self::utc($start);
         $p['_ends'] = $allDay ? $end->format('Y-m-d') : self::utc($end);
         $p['interval'] = $p['interval'] === '' ? 1 : (int)$p['interval'];
-        $p['_days'] = self::integers($p['weekdays'], 1, 7, 'Weekdays');
-        $p['_offsets'] = self::integers($p['reminders'], 0, 43200, 'Reminder offsets');
+        $p['_days'] = self::integers($p['weekdays'], 1, 7, ltText('weekdays'));
+        $p['_offsets'] = self::integers($p['reminders'], 0, 43200, ltText('reminder_offsets'));
         $p['_skips'] = [];
         foreach (self::split($p['skips']) as $date) {
             self::date($date);
@@ -53,7 +53,7 @@ final class Planner
         foreach (preg_split('/\R/', trim($p['overrides']), -1, PREG_SPLIT_NO_EMPTY) as $line) {
             $parts = array_map('trim', explode('=', $line, 2));
             if (count($parts) !== 2) {
-                throw new Problem('Use one occurrence override per line in original-date = new-date/time format.');
+                throw new Problem(ltText('use_one_occurrence_override_per_line'));
             }
             [$original,$replacement] = $parts;
             self::date($original);
@@ -74,7 +74,7 @@ final class Planner
         foreach (self::split($text) as $part) {
             $value = filter_var($part, FILTER_VALIDATE_INT, ['options'=>['min_range'=>$min,'max_range'=>$max]]);
             if ($value === false) {
-                throw new Problem("$label must be between $min and $max.");
+                throw new Problem(ltText('label_must_be_between_min_and',['label'=>$label,'min'=>$min,'max'=>$max]));
             }
             $values[] = $value;
         }

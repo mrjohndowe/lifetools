@@ -35,6 +35,10 @@ php bin/lifetools release
 
 Settings offers redacted configuration, synthetic data, export, migrations, verification, repair, queue drain, backup, and restore. Administrators can add users. Backup and installation actions require re-authentication.
 
+## Site language
+
+Edit [app/lang.php](app/lang.php) to customize the installation's language. Set `LT_LANGUAGE` to the HTML language code and translate the values on the right in `LT_MESSAGES` and `LT_OPTIONS`. Keep the keys on the left and any named placeholders such as `{title}` intact. The same file supplies the browser messages. Existing records, custom choices, and export field names retain their stored values.
+
 ## Configuration
 
 The canonical file is **lifetools.config.json**. Search order is **--config PATH**, **LIFETOOLS_CONFIG**, the project root, **config/lifetools.config.json**, then **%APPDATA%/lifetools/config.json** on Windows or **$XDG_CONFIG_HOME/lifetools/config.json** on Linux (defaults to **~/.config**). Relative paths resolve from the app root. The first existing file is validated. Values use CLI flag, then environment, then JSON, then defaults. Process variables take precedence over simple **NAME=value** lines in the optional local **.env**. Empty overrides use the next source. Unknown JSON keys are tolerated.

@@ -14,7 +14,7 @@ final class Web
         try {
             if (str_contains(strtolower($_SERVER['SERVER_SOFTWARE'] ?? ''),'apache') && getenv('LIFETOOLS_APACHE_GUARD') !== '1'
                 && ($_SERVER['LIFETOOLS_APACHE_GUARD'] ?? '') !== '1') {
-                throw new Problem('Apache is ignoring the LifeTools .htaccess file. Enable AllowOverride All for this directory.');
+                throw new Problem(ltText('apache_is_ignoring_the_lifetools_htaccess'));
             }
             Install::requirements();
             $result = Config::detect();
@@ -26,12 +26,11 @@ final class Web
             }
             if ($state['phase'] !== 'configured') {
                 if ($state['phase'] === 'recovery' || $result['status'] === 'INVALID') {
-                    throw new Problem('Configuration ' . $result['status'] . ' at ' . $result['path'] . '. ' .
-                        ($result['error'] ?? '') . ' Restore the original configuration and key using SECURITY.md.');
+                    throw new Problem(ltText('configuration_status_at_path_error_restore',['status'=>ltOption($result['status']),'path'=>$result['path'],'error'=>$result['error'] ?? '']));
                 }
                 if (!in_array($_SERVER['REMOTE_ADDR'] ?? '',['127.0.0.1','::1','::ffff:127.0.0.1'],true)) {
                     http_response_code(403);
-                    Views::error('Open the installer from localhost on the server.');
+                    Views::error(ltText('open_the_installer_from_localhost_on'));
                     return;
                 }
                 if ($action === 'generate_key') {
@@ -44,7 +43,7 @@ final class Web
                         'user'=>Catalog::text($_POST['mysql_user'] ?? '',128),
                         'password'=>Catalog::text($_POST['mysql_password'] ?? '',1024,true),
                     ]);
-                    self::json(['message'=>'MySQL is reachable.']);
+                    self::json(['message'=>ltText('mysql_is_reachable')]);
                 }
                 $error = null;
                 if ($action === 'install') {
@@ -68,7 +67,7 @@ final class Web
                     $error = self::login($store);
                 }
                 if ($api) {
-                    self::json(['error'=>'Sign in to continue.'],401);
+                    self::json(['error'=>ltText('sign_in_to_continue')],401);
                 }
                 Views::login($store->config,$error);
                 return;
@@ -89,7 +88,7 @@ final class Web
             }
             if (isset($_GET['setup'])) {
                 http_response_code(403);
-                Views::error('Onboarding is locked for this installation.');
+                Views::error(ltText('onboarding_is_locked_for_this_installation'));
                 return;
             }
             $mirror = new Mirror($store);
@@ -102,7 +101,7 @@ final class Web
                 $due = Planner::due($items,$now);
                 self::json(['count'=>count($due),'events'=>array_map(static fn($event)=>[
                     'title'=>$event['title'],'url'=>self::url(['view'=>'record','kind'=>'events','id'=>$event['id']]),
-                    'time'=>$event['start']->format($event['allDay'] ? 'M j' : 'M j · H:i'),
+                    'time'=>ltDate($event['start'],$event['allDay'] ? 'short_date' : 'short_date_time'),
                 ],array_slice($due,0,8))]);
             }
             if ($action === 'sync_tick') {
@@ -122,7 +121,7 @@ final class Web
                 if ($api) {
                     self::json(['id'=>$row['id'],'revision'=>$row['revision'],'saved'=>$row['updated_at']]);
                 }
-                self::flash('Saved.', ['view'=>'record','kind'=>$kind,'id'=>$row['id']]);
+                self::flash(ltText('saved'), ['view'=>'record','kind'=>$kind,'id'=>$row['id']]);
             }
             if (in_array($action,['delete','restore_record','duplicate','schedule'],true)) {
                 self::recordAction($store,$owner,$prefs,$kind,$action);
@@ -131,7 +130,7 @@ final class Web
                 $row = $store->record($owner,(string)($_POST['id'] ?? ''),$kind);
                 $field = (string)($_POST['field'] ?? '');
                 if ((Catalog::fields($kind,$prefs)[$field][0] ?? '') !== 'secret') {
-                    throw new Problem('This field is not available for reveal.');
+                    throw new Problem(ltText('this_field_is_not_available_for'));
                 }
                 try {
                     self::reauth($store,$user);
@@ -158,12 +157,12 @@ final class Web
                 'search'=>Views::search($store,$owner),
                 'settings'=>Views::settings($store,$user,$result),
                 'banks'=>Views::banks($store,$owner),
-                default=>throw new Problem('This page could not be found.'),
+                default=>throw new Problem(ltText('this_page_could_not_be_found')),
             };
             Views::shellEnd($prefs);
         } catch (Throwable $error) {
             ob_clean();
-            $message = $error instanceof Problem ? $error->getMessage() : 'LifeTools could not complete this request.';
+            $message = $error instanceof Problem ? $error->getMessage() : ltText('lifetools_could_not_complete_this_request');
             if ($api) {
                 self::json(['error'=>$message],$error instanceof Problem ? 422 : 500);
             }
@@ -176,7 +175,7 @@ final class Web
     {
         $host = Catalog::text($value,253);
         if (!preg_match('/^[A-Za-z0-9_.:-]+$/D',$host)) {
-            throw new Problem('Enter a valid MySQL host.');
+            throw new Problem(ltText('enter_a_valid_mysql_host'));
         }
         return $host;
     }
@@ -185,7 +184,7 @@ final class Web
     {
         $port = filter_var($value,FILTER_VALIDATE_INT,['options'=>['min_range'=>1,'max_range'=>65535]]);
         if ($port === false) {
-            throw new Problem('Enter a MySQL port from 1 to 65535.');
+            throw new Problem(ltText('enter_a_mysql_port_from_1'));
         }
         return $port;
     }
@@ -194,7 +193,7 @@ final class Web
     {
         $database = Catalog::text($value,64);
         if (!preg_match('/^[A-Za-z0-9_]+$/D',$database)) {
-            throw new Problem('Enter a MySQL database name using letters, numbers or underscores.');
+            throw new Problem(ltText('enter_a_mysql_database_name_using'));
         }
         return $database;
     }
@@ -216,7 +215,7 @@ final class Web
     private static function csrf(): void
     {
         if (!is_string($_POST['csrf'] ?? null) || !hash_equals($_SESSION['csrf'],$_POST['csrf'])) {
-            throw new Problem('Your form expired. Reload the page and try again.');
+            throw new Problem(ltText('your_form_expired_reload_the_page'));
         }
     }
 
@@ -262,13 +261,13 @@ final class Web
         $password = Catalog::text($_POST['password'] ?? '',72,true);
         $throttle = 'login:' . hash_hmac('sha256',$_SERVER['REMOTE_ADDR'] ?? 'local',$store->config['session']);
         if (!$store->allowAttempt($throttle)) {
-            return 'Too many attempts. Wait five minutes and try again.';
+            return ltText('too_many_attempts_wait_five_minutes');
         }
         $user = $store->user($identity);
         $hash = $user ? Store::payload($user)['passwordHash'] : '$2y$12$iNwO1CVKyD0ASj3jPTZxTeLb6zVywC92v37R8YYVH6xzjR7R6GqgS';
         if (!password_verify($password,$hash) || !$user) {
             $store->transaction(fn()=>$store->audit($user['id'] ?? '','login_failed'));
-            return 'The login or password is incorrect.';
+            return ltText('the_login_or_password_is_incorrect');
         }
         $store->transaction(function () use ($store,$user,$throttle): void {
             $store->run('DELETE FROM throttle WHERE key=?',[$throttle]);
@@ -281,10 +280,10 @@ final class Web
     private static function reauth(Store $store,array $user): void
     {
         if (!$store->allowAttempt('reauth:' . $user['id'])) {
-            throw new Problem('Too many verification attempts. Try again in five minutes.');
+            throw new Problem(ltText('too_many_verification_attempts_try_again'));
         }
         if (!password_verify(Catalog::text($_POST['password'] ?? '',72,true),Store::payload($user)['passwordHash'])) {
-            throw new Problem('The application password is incorrect.');
+            throw new Problem(ltText('the_application_password_is_incorrect'));
         }
         $store->run('DELETE FROM throttle WHERE key=?',['reauth:' . $user['id']]);
     }
@@ -295,7 +294,7 @@ final class Web
         $p = Store::payload($row);
         $bytes = $store->privateValue($row,'file');
         if (!hash_equals($p['sha256'],hash('sha256',$bytes))) {
-            throw new Problem('The file checksum did not match.');
+            throw new Problem(ltText('the_file_checksum_did_not_match'));
         }
         header('Content-Type: ' . $p['mime']);
         header('Content-Length: ' . strlen($bytes));
@@ -308,12 +307,12 @@ final class Web
     private static function recordAction(Store $store,string $owner,array $prefs,string $kind,string $action): never
     {
         if (!isset(Catalog::LABELS[$kind])) {
-            throw new Problem('Unknown module.');
+            throw new Problem(ltText('unknown_module'));
         }
         $row = $store->transaction(function () use ($store,$owner,$kind,$action,$prefs): array {
             $row = $store->record($owner,(string)($_POST['id'] ?? ''),$kind,$action === 'restore_record');
             if ((string)$row['revision'] !== (string)($_POST['revision'] ?? '')) {
-                throw new Problem('This record changed in another view. Reload it first.');
+                throw new Problem(ltText('this_record_changed_in_another_view_reload'));
             }
             $p = Store::payload($row);
             unset($p['_private']);
@@ -329,7 +328,7 @@ final class Web
                     default=>$p['time'],
                 };
                 if (!$start) {
-                    throw new Problem('Save a date before adding this record to the planner.');
+                    throw new Problem(ltText('save_a_date_before_adding_this'));
                 }
                 $allDay = strlen($start) === 10;
                 if ($kind === 'contacts') {
@@ -338,7 +337,7 @@ final class Web
                 }
                 $zone = new DateTimeZone($prefs['zone']);
                 $event = [
-                    'title'=>($kind === 'contacts' ? 'Birthday: ' : '').$row['title'],
+                    'title'=>$kind === 'contacts' ? ltText('birthday_name',['name'=>$row['title']]) : $row['title'],
                     'start'=>$allDay ? $start : (new DateTimeImmutable($start))->setTimezone($zone)->format('Y-m-d\TH:i'),
                     'all_day'=>$allDay ? '1' : '0','category'=>in_array($kind,['appointments','work_shifts'],true) ? 'work' : 'personal',
                     'contact'=>$kind === 'contacts' ? $row['id'] : '',
@@ -352,14 +351,14 @@ final class Web
                 return Catalog::write($store,$owner,'events',$event,$prefs);
             }
             if (!in_array($action,['delete','restore_record'],true)) {
-                throw new Problem('This action is unavailable for the selected record.');
+                throw new Problem(ltText('this_action_is_unavailable_for_the'));
             }
             return $store->save($owner,$kind,$row['title'],$p,old:$row,deleted:$action === 'delete');
         });
         if ($action === 'delete') {
-            self::flash('Moved to trash.', ['view'=>'module','kind'=>$kind]);
+            self::flash(ltText('moved_to_trash'), ['view'=>'module','kind'=>$kind]);
         }
-        self::flash('Saved.', ['view'=>'record','kind'=>$row['kind'],'id'=>$row['id']]);
+        self::flash(ltText('saved'), ['view'=>'record','kind'=>$row['kind'],'id'=>$row['id']]);
     }
 
     public static function birthday(string $dob, DateTimeImmutable $today): DateTimeImmutable
@@ -377,7 +376,7 @@ final class Web
     private static function export(Store $store,string $owner,string $kind): never
     {
         if ($kind !== '' && (!isset(Catalog::LABELS[$kind]) || in_array($kind,['intimacy_events','journal_entries','daily_logs'],true))) {
-            throw new Problem('This module is excluded from general exports.');
+            throw new Problem(ltText('this_module_is_excluded_from_general'));
         }
         $store->transaction(fn()=>$store->audit($owner,'export',['kind'=>$kind ?: 'all']));
         $rows = $store->run("SELECT * FROM records WHERE owner=? AND deleted_at IS NULL
@@ -427,7 +426,7 @@ final class Web
         if ($operation === 'preferences' || $operation === 'theme') {
             $theme = $_POST['theme'] ?? '';
             if (!in_array($theme,['system','light','dark'],true)) {
-                throw new Problem('Choose an available theme.');
+                throw new Problem(ltText('choose_an_available_theme'));
             }
             $store->transaction(function () use ($store,$owner,$operation,$theme): void {
                 $current = $store->record($owner,$owner,'users');
@@ -437,7 +436,7 @@ final class Web
                     if (!in_array($_POST['zone'] ?? '',DateTimeZone::listIdentifiers(DateTimeZone::ALL_WITH_BC),true)
                         || !preg_match('/^[A-Z]{3}$/D',(string)($_POST['currency'] ?? ''))
                         || !in_array($_POST['format'] ?? '',['Y-m-d','m/d/Y','d/m/Y'],true)) {
-                        throw new Problem('Check the time zone, currency and date format.');
+                        throw new Problem(ltText('check_the_time_zone_currency_and'));
                     }
                     foreach (['zone','currency','format','relationships','account_types','intimacy_types','intimacy_questions'] as $name) {
                         $p[$name] = Catalog::text($_POST[$name] ?? '',1500);
@@ -449,14 +448,14 @@ final class Web
             if (isset($_GET['api'])) {
                 self::json(['theme'=>$theme]);
             }
-            self::flash('Preferences saved.',['view'=>'settings']);
+            self::flash(ltText('preferences_saved'),['view'=>'settings']);
         }
         if ($operation === 'seed') {
             $year = Maintenance::seed($store,$owner,$prefs);
-            self::flash("Synthetic records loaded for $year.",['view'=>'settings']);
+            self::flash(ltText('synthetic_records_loaded_for_year',['year'=>$year]),['view'=>'settings']);
         }
         if ($prefs['role'] !== 'admin') {
-            throw new Problem('Administrator access is required.');
+            throw new Problem(ltText('administrator_access_is_required'));
         }
         self::reauth($store,$user);
         $mirror = new Mirror($store);
@@ -464,12 +463,12 @@ final class Web
             'create_user'=>$store->transaction(function () use ($store,$owner): array {
                 $role = $_POST['role'] ?? 'standard';
                 if (!in_array($role,['admin','standard'],true)) {
-                    throw new Problem('Select an available role.');
+                    throw new Problem(ltText('select_an_available_role'));
                 }
                 $new = $store->createUser(Catalog::text($_POST['login'] ?? '',80),
                     Catalog::text($_POST['new_password'] ?? '',72,true),$role,$store->config);
                 $store->audit($owner,'user_created',['id'=>$new['id'],'role'=>$role]);
-                return ['message'=>'User created.'];
+                return ['message'=>ltText('user_created')];
             }),
             'verify'=>$mirror->verify(),
             'repair'=>$mirror->verify(true,$owner),
@@ -479,10 +478,10 @@ final class Web
             'restore'=>Maintenance::restore($store,Catalog::text($_POST['backup'] ?? '',40),($_POST['from_mirror'] ?? '') === '1'),
             'reconfigure'=>self::reconfigure($result),
             'mirror_config'=>Config::updateMirror($result,$_POST),
-            default=>throw new Problem('Choose a maintenance action.'),
+            default=>throw new Problem(ltText('choose_a_maintenance_action')),
         };
         $_SESSION['maintenance'] = $output;
-        self::flash('Maintenance action finished.',['view'=>'settings']);
+        self::flash(ltText('maintenance_action_finished'),['view'=>'settings']);
     }
 
     private static function migrate(Store $store,Mirror $mirror): array
@@ -496,7 +495,7 @@ final class Web
 
     private static function reconfigure(array $result): array
     {
-        return ['message'=>'Edit the listed protected config file on the server and restart Apache. The installer stays locked.',
+        return ['message'=>ltText('edit_the_listed_protected_config_file'),
             'config'=>Config::public($result)];
     }
 

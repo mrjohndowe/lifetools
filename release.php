@@ -1,12 +1,13 @@
 <?php
 declare(strict_types=1);
 
+require __DIR__.'/app/lang.php';
 require __DIR__.'/app/Release.php';
 
 $file = __DIR__.'/dist/'.Release::FILE;
 if (!is_file($file)) {
     http_response_code(404);
-    exit('The release archive is available with the source checkout.');
+    exit(ltText('the_release_archive_is_available_with'));
 }
 header('Content-Type: application/zip');
 header('X-Content-Type-Options: nosniff');

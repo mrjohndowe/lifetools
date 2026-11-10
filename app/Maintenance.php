@@ -98,7 +98,7 @@ final class Maintenance
             $name = gmdate('Ymd\THis\Z') . '-' . bin2hex(random_bytes(3));
             $directory = LT_ROOT . '/backups/' . $name;
             if (!mkdir($directory,0700)) {
-                throw new Problem('Could not create the backup folder.');
+                throw new Problem(ltText('could_not_create_the_backup_folder'));
             }
             $snapshot = $directory . '/sqlite.snapshot';
             $store->run('VACUUM INTO ?',[$snapshot]);
@@ -119,14 +119,14 @@ final class Maintenance
                     $manifest['counts']['mysql'] = $mirror->locked(function (PDO $mysql) use ($file): array {
                         $handle = fopen($file,'xb');
                         if (!$handle) {
-                            throw new Problem('Could not write the MySQL dump.');
+                            throw new Problem(ltText('could_not_write_the_mysql_dump'));
                         }
                         $counts = [];
                         try {
                             foreach ($mysql->query('SELECT * FROM lt_records ORDER BY id') as $row) {
                                 $line = ltJson($row) . "\n";
                                 if (fwrite($handle,$line) !== strlen($line)) {
-                                    throw new Problem('The MySQL dump could not be written completely.');
+                                    throw new Problem(ltText('the_mysql_dump_could_not_be'));
                                 }
                                 $counts[$row['kind']] = 1+($counts[$row['kind']] ?? 0);
                             }
@@ -134,7 +134,7 @@ final class Maintenance
                             fclose($handle);
                         }
                         if (!$counts) {
-                            throw new Problem('The mirror has no records yet.');
+                            throw new Problem(ltText('the_mirror_has_no_records_yet'));
                         }
                         return $counts;
                     });
@@ -145,7 +145,7 @@ final class Maintenance
                         unlink($file);
                     }
                     $manifest['mirror'] = 'failed';
-                    $manifest['mirrorError'] = $e instanceof Problem ? $e->getMessage() : 'Could not dump MySQL backup.';
+                    $manifest['mirrorError'] = $e instanceof Problem ? $e->getMessage() : ltText('could_not_dump_mysql_backup');
                 }
             }
             ltAtomic($directory . '/manifest.json',ltJson($manifest) . "\n");
@@ -156,7 +156,7 @@ final class Maintenance
     public static function restore(Store $store,string $name,bool $fromMirror = false): array
     {
         if (!preg_match('/^\d{8}T\d{6}Z-[a-f0-9]{6}$/D',$name)) {
-            throw new Problem('Enter a backup identifier from the backups folder.');
+            throw new Problem(ltText('enter_a_backup_identifier_from_the'));
         }
         return ltLock(LT_ROOT . '/storage/worker.lock', function () use ($store,$name,$fromMirror): array {
             $directory = LT_ROOT . '/backups/' . $name;
@@ -165,13 +165,13 @@ final class Maintenance
             $path = $directory.'/'.$file;
             if (($manifest['version'] ?? null) !== Store::VERSION || !isset($manifest['files'][$file])
                 || !is_file($path) || !hash_equals($manifest['files'][$file],hash_file('sha256',$path))) {
-                throw new Problem('The selected backup is missing, incompatible, or failed its checksum.');
+                throw new Problem(ltText('the_selected_backup_is_missing_incompatible'));
             }
             $fingerprint = $manifest['installation'];
             $state = Install::state(['status'=>'OK']);
             if (!isset($state['id']) || !hash_equals($state['id'].':'.hash_hmac('sha256',$state['id'],$store->config['key']),$fingerprint)
                 || ($store->meta('installation') !== null && $store->meta('installation') !== $fingerprint)) {
-                throw new Problem('The backup does not belong to this installation or the key does not match.');
+                throw new Problem(ltText('the_backup_does_not_belong_to'));
             }
             if (!$fromMirror) {
                 $store->run('ATTACH DATABASE ? AS snapshot',[$path]);
@@ -187,7 +187,7 @@ final class Maintenance
                                 $store->put(json_decode($line,true,512,JSON_THROW_ON_ERROR));
                             }
                             if (!feof($handle)) {
-                                throw new Problem('Could not read the complete MySQL dump.');
+                                throw new Problem(ltText('could_not_read_the_complete_mysql'));
                             }
                         } finally {
                             fclose($handle);
@@ -201,7 +201,7 @@ final class Maintenance
                     }
                     if ($store->meta('installation') !== $fingerprint ||
                         !$store->run("SELECT 1 FROM records WHERE kind='users' AND deleted_at IS NULL AND json_extract(payload,'$.role')='admin'")->fetchColumn()) {
-                        throw new Problem('The backup does not contain a valid administrator and installation.');
+                        throw new Problem(ltText('the_backup_does_not_contain_a'));
                     }
                     foreach ($store->run('SELECT * FROM records') as $row) {
                         $store->indexLinks($row);

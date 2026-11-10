@@ -17,176 +17,187 @@ final class Catalog
     ];
 
     public const LABELS = [
-        'events'=>'Events','contacts'=>'Contacts','personal_profile'=>'Personal profile','phone_history'=>'Past phones',
-        'email_history'=>'Past emails','accounts'=>'Managed accounts','bank_accounts'=>'Bank accounts','cards'=>'Cards',
-        'vehicles'=>'Vehicles','vehicle_documents'=>'Vehicle records','receipts'=>'Receipts','chores'=>'Chores & cleaning',
-        'lists'=>'Lists','list_items'=>'List items','inventory_items'=>'Household inventory','documents'=>'Documents',
-        'music_tracks'=>'Tracks','playlists'=>'Playlists','playlist_items'=>'Playlist tracks','business_inventory'=>'Business inventory',
-        'income_entries'=>'Income','appointments'=>'Appointments','work_orders'=>'Work orders','work_order_items'=>'Order items',
-        'work_order_deliveries'=>'Deliveries','meal_plans'=>'Meal plans','recipes'=>'Recipes','work_shifts'=>'Work shifts',
-        'daily_logs'=>'Daily log','journal_entries'=>'Private journal','intimacy_events'=>'Intimacy journal',
-        'incidents'=>'Incidents','notes'=>'Notes','attachments'=>'Files & photos','websites'=>'Websites',
+        'events'=>'events','contacts'=>'contacts','personal_profile'=>'personal_profile','phone_history'=>'past_phones',
+        'email_history'=>'past_emails','accounts'=>'managed_accounts','bank_accounts'=>'bank_accounts','cards'=>'cards',
+        'vehicles'=>'vehicles','vehicle_documents'=>'vehicle_records','receipts'=>'receipts','chores'=>'chores_cleaning',
+        'lists'=>'lists','list_items'=>'list_items','inventory_items'=>'household_inventory','documents'=>'documents',
+        'music_tracks'=>'tracks','playlists'=>'playlists','playlist_items'=>'playlist_tracks','business_inventory'=>'business_inventory',
+        'income_entries'=>'income','appointments'=>'appointments','work_orders'=>'work_orders','work_order_items'=>'order_items',
+        'work_order_deliveries'=>'deliveries','meal_plans'=>'meal_plans','recipes'=>'recipes','work_shifts'=>'work_shifts',
+        'daily_logs'=>'daily_log','journal_entries'=>'private_journal','intimacy_events'=>'intimacy_journal',
+        'incidents'=>'incidents','notes'=>'notes','attachments'=>'files_photos','websites'=>'websites',
     ];
 
     public const QUESTIONS = [
-        'What type of encounter or activity occurred?',
-        'Was the encounter consensual and mutually agreed upon?',
-        'Did everyone involved feel comfortable participating?',
-        'How would you rate the overall experience?',
-        'How would you rate your emotional connection?',
-        'How would you rate the communication?',
-        'How would you rate the level of comfort and trust?',
-        'How satisfied were you with the experience?',
-        'How would you describe your mood before the event?',
-        'How would you describe your mood afterward?',
-        'What did you particularly enjoy?',
-        'Was there anything you disliked or would change?',
-        'Were any boundaries discussed or respected?',
-        'Was there anything new you learned about your preferences?',
-        'Is there anything you would like to remember for next time?',
-        'Are there any additional notes you want to record?',
+        'what_type_of_encounter_or_activity',
+        'was_the_encounter_consensual_and_mutually',
+        'did_everyone_involved_feel_comfortable_participating',
+        'how_would_you_rate_the_overall',
+        'how_would_you_rate_your_emotional',
+        'how_would_you_rate_the_communication',
+        'how_would_you_rate_the_level',
+        'how_satisfied_were_you_with_the',
+        'how_would_you_describe_your_mood',
+        'how_would_you_describe_your_mood_afterward',
+        'what_did_you_particularly_enjoy',
+        'was_there_anything_you_disliked_or',
+        'were_any_boundaries_discussed_or_respected',
+        'was_there_anything_new_you_learned',
+        'is_there_anything_you_would_like',
+        'are_there_any_additional_notes_you',
     ];
+
+    public static function label(string $kind): string
+    {
+        return ltText(self::LABELS[$kind]);
+    }
+
+    public static function labels(): array
+    {
+        return array_map(ltText(...), self::LABELS);
+    }
 
     public static function fields(string $kind, array $prefs = []): array
     {
-        $contact = ['link','Contact',['contacts']];
-        $file = ['links','Files or photos',['attachments']];
-        $notes = ['private','Private notes'];
-        $tags = ['text','Tags (comma-separated)'];
-        $work = ['select','Status',['quoted','paid','in progress','delivered','refunded','files deleted']];
+        $contact = ['link',ltText('contact'),['contacts']];
+        $file = ['links',ltText('files_or_photos'),['attachments']];
+        $notes = ['private',ltText('private_notes')];
+        $tags = ['text',ltText('tags_comma_separated')];
+        $work = ['select',ltText('status'),['quoted','paid','in progress','delivered','refunded','files deleted']];
         $holder = [
-            'holder'=>['text','Account holder'], 'dob'=>['date','Date of birth'],
-            'email'=>['email','Email'],'phone'=>['text','Phone'],
+            'holder'=>['text',ltText('account_holder')], 'dob'=>['date',ltText('date_of_birth')],
+            'email'=>['email',ltText('email')],'phone'=>['text',ltText('phone')],
         ];
         $bank = [
-            'holder'=>['secret','Account holder'],'dob'=>['secret','Date of birth'],
-            'email'=>['secret','Email'],'phone'=>['secret','Phone'],
-            'institution'=>['text','Institution'], 'subtype'=>['select','Account type',['checking','savings','credit','debit','investment','other']],
-            'ssn'=>['secret','Social Security number'], 'password'=>['secret','Online banking password'],
-            'pin'=>['secret','PIN'], 'number'=>['secret','Account number'],'routing'=>['secret','Routing number'],
-            'card'=>['secret','Card number'],'expiry'=>['month','Card expiry'],'card_type'=>['text','Card network or type'],
-            'username'=>['secret','Username'],'contact'=>$contact,'notes'=>$notes,
+            'holder'=>['secret',ltText('account_holder')],'dob'=>['secret',ltText('date_of_birth')],
+            'email'=>['secret',ltText('email')],'phone'=>['secret',ltText('phone')],
+            'institution'=>['text',ltText('institution')], 'subtype'=>['select',ltText('account_type'),['checking','savings','credit','debit','investment','other']],
+            'ssn'=>['secret',ltText('social_security_number')], 'password'=>['secret',ltText('online_banking_password')],
+            'pin'=>['secret',ltText('pin')], 'number'=>['secret',ltText('account_number')],'routing'=>['secret',ltText('routing_number')],
+            'card'=>['secret',ltText('card_number')],'expiry'=>['month',ltText('card_expiry')],'card_type'=>['text',ltText('card_network_or_type')],
+            'username'=>['secret',ltText('username')],'contact'=>$contact,'notes'=>$notes,
         ];
         return match ($kind) {
             'events'=>[
-                'description'=>['area','Description'], 'category'=>['select','Category',['rental','vehicle','medical','work','legal','personal','business']],
-                'status'=>['select','Status',['planned','done','cancelled']], 'all_day'=>['check','All day'],
-                'start'=>['eventtime','Starts'], 'end'=>['eventtime','Ends (optional)'], 'zone'=>['zone','Event time zone'],
-                'location'=>['text','Location'], 'frequency'=>['select','Repeat',['daily','weekly','monthly','yearly']],
-                'interval'=>['positive','Repeat every'], 'weekdays'=>['text','Weekdays (1 Monday to 7 Sunday)'],
-                'until'=>['date','Repeat through'], 'count'=>['positive','Maximum occurrences'],
-                'skips'=>['text','Skip dates (YYYY-MM-DD, separated by commas)'],
-                'overrides'=>['area','Overrides (original YYYY-MM-DD = new YYYY-MM-DD or YYYY-MM-DDTHH:MM)'],
-                'reminders'=>['text','Reminders (minutes before, separated by commas)'],
-                'contact'=>$contact, 'related'=>['links','Related records',['vehicles','accounts','documents','work_orders']],
+                'description'=>['area',ltText('description')], 'category'=>['select',ltText('category'),['rental','vehicle','medical','work','legal','personal','business']],
+                'status'=>['select',ltText('status'),['planned','done','cancelled']], 'all_day'=>['check',ltText('all_day')],
+                'start'=>['eventtime',ltText('starts')], 'end'=>['eventtime',ltText('ends_optional')], 'zone'=>['zone',ltText('event_time_zone')],
+                'location'=>['text',ltText('location')], 'frequency'=>['select',ltText('repeat'),['daily','weekly','monthly','yearly']],
+                'interval'=>['positive',ltText('repeat_every')], 'weekdays'=>['text',ltText('weekdays_1_monday_to_7_sunday')],
+                'until'=>['date',ltText('repeat_through')], 'count'=>['positive',ltText('maximum_occurrences')],
+                'skips'=>['text',ltText('skip_dates_yyyy_mm_dd_separated')],
+                'overrides'=>['area',ltText('overrides_original_yyyy_mm_dd_new')],
+                'reminders'=>['text',ltText('reminders_minutes_before_separated_by_commas')],
+                'contact'=>$contact, 'related'=>['links',ltText('related_records'),['vehicles','accounts','documents','work_orders']],
                 'attachments'=>$file, 'tags'=>$tags,
             ],
             'contacts'=>[
-                'first'=>['text','First name'],'middle'=>['text','Middle name'],'last'=>['text','Last name'],
-                'dob'=>['date','Birthday'],'email'=>['email','Email'],'phone'=>['text','Primary phone'],
-                'phone2'=>['text','Secondary phone'],'street'=>['text','Street'],'city'=>['text','City'],
-                'state'=>['text','State'],'postal'=>['text','Postal code'],
-                'relationship'=>['select','Relationship', self::options($prefs['relationships'] ?? '', [
+                'first'=>['text',ltText('first_name')],'middle'=>['text',ltText('middle_name')],'last'=>['text',ltText('last_name')],
+                'dob'=>['date',ltText('birthday')],'email'=>['email',ltText('email')],'phone'=>['text',ltText('primary_phone')],
+                'phone2'=>['text',ltText('secondary_phone')],'street'=>['text',ltText('street')],'city'=>['text',ltText('city')],
+                'state'=>['text',ltText('state')],'postal'=>['text',ltText('postal_code')],
+                'relationship'=>['select',ltText('relationship'), self::options($prefs['relationships'] ?? '', [
                     'Mother','Father','Brother','Sister','Son','Daughter','Friend','Best Friend','Family','Work','Girlfriend',
                     'Boyfriend','Partner','Ex','Fling','Friends with Benefits','One Night Stand','Other'])],
-                'organization'=>['text','Organization'],'job'=>['text','Job title'],'notes'=>$notes,'tags'=>$tags,
+                'organization'=>['text',ltText('organization')],'job'=>['text',ltText('job_title')],'notes'=>$notes,'tags'=>$tags,
             ],
             'personal_profile'=>[
-                'legal'=>['text','Legal name'],'dob'=>['date','Date of birth'],'ssn'=>['secret','Social Security number'],
-                'license'=>['secret','Driver’s license'],'phone'=>['text','Current phone'],'email'=>['email','Current email'],'tags'=>$tags,
+                'legal'=>['text',ltText('legal_name')],'dob'=>['date',ltText('date_of_birth')],'ssn'=>['secret',ltText('social_security_number')],
+                'license'=>['secret',ltText('drivers_license')],'phone'=>['text',ltText('current_phone')],'email'=>['email',ltText('current_email')],'tags'=>$tags,
             ],
-            'phone_history','email_history'=>['start'=>['date','From'],'end'=>['date','Through'],'notes'=>$notes],
+            'phone_history','email_history'=>['start'=>['date',ltText('from')],'end'=>['date',ltText('through')],'notes'=>$notes],
             'accounts'=>$holder + [
-                'username'=>['secret','Username'],'password'=>['secret','Password'],'recovery_email'=>['secret','Recovery email'],
-                'recovery_phone'=>['secret','Recovery phone'],'question'=>['secret','Security questions'],
-                'answer'=>['secret','Security answers'],'codes'=>['secret','Recovery codes'],'url'=>['url','Service URL'],
-                'type'=>['select','Account type',self::options($prefs['account_types'] ?? '', ['Websites','Email','Social media','Gaming',
+                'username'=>['secret',ltText('username')],'password'=>['secret',ltText('password')],'recovery_email'=>['secret',ltText('recovery_email')],
+                'recovery_phone'=>['secret',ltText('recovery_phone')],'question'=>['secret',ltText('security_questions')],
+                'answer'=>['secret',ltText('security_answers')],'codes'=>['secret',ltText('recovery_codes')],'url'=>['url',ltText('service_url')],
+                'type'=>['select',ltText('account_type'),self::options($prefs['account_types'] ?? '', ['Websites','Email','Social media','Gaming',
                     'Subscriptions','Banking','Credit or debit cards','Investments','Utilities','Other'])],
                 'contact'=>$contact,'notes'=>$notes,'tags'=>$tags,
             ],
             'bank_accounts','cards'=>$bank,
             'vehicles'=>[
-                'year'=>['positive','Year'],'make'=>['text','Make'],'model'=>['text','Model'],'vin'=>['secret','VIN'],
-                'title_info'=>['text','Title details'],'registration'=>['secret','Registration number'],
-                'registration_expires'=>['date','Registration expires'],'insurer'=>['text','Insurer'],
-                'policy'=>['secret','Policy number'],'insurance_expires'=>['date','Insurance expires'],'attachments'=>$file,'notes'=>$notes,
+                'year'=>['positive',ltText('year')],'make'=>['text',ltText('make')],'model'=>['text',ltText('model')],'vin'=>['secret',ltText('vin')],
+                'title_info'=>['text',ltText('title_details')],'registration'=>['secret',ltText('registration_number')],
+                'registration_expires'=>['date',ltText('registration_expires')],'insurer'=>['text',ltText('insurer')],
+                'policy'=>['secret',ltText('policy_number')],'insurance_expires'=>['date',ltText('insurance_expires')],'attachments'=>$file,'notes'=>$notes,
             ],
             'vehicle_documents'=>[
-                'vehicle'=>['link','Vehicle',['vehicles']], 'type'=>['select','Type',['title','registration','insurance','work order','manual','maintenance']],
-                'date'=>['date','Date'],'cost'=>['money','Cost'],'shop'=>['text','Shop'],'description'=>['area','Description'],'attachments'=>$file,
+                'vehicle'=>['link',ltText('vehicle'),['vehicles']], 'type'=>['select',ltText('type'),['title','registration','insurance','work order','manual','maintenance']],
+                'date'=>['date',ltText('date')],'cost'=>['money',ltText('cost')],'shop'=>['text',ltText('shop')],'description'=>['area',ltText('description')],'attachments'=>$file,
             ],
-            'receipts'=>['merchant'=>['text','Merchant'],'date'=>['date','Purchase date'],'amount'=>['money','Amount'],'category'=>['text','Category'],'attachments'=>$file],
-            'chores'=>['due'=>['date','Due date'],'frequency'=>['select','Repeat',['daily','weekly','monthly','yearly']],
-                'interval'=>['positive','Repeat every'],'done'=>['check','Done'],'notes'=>$notes],
-            'lists'=>['type'=>['select','List type',['general','shopping','grocery','packing']],'notes'=>$notes],
-            'list_items'=>['list'=>['link','List',['lists']],'quantity'=>['number','Quantity'],'category'=>['text','Category'],
-                'done'=>['check','Done'],'position'=>['number','Order']],
-            'inventory_items'=>['room'=>['text','Room'],'quantity'=>['number','Quantity'],'value'=>['money','Value'],'attachments'=>$file],
-            'documents'=>['category'=>['select','Category',['receipts','tax docs','day stubs','journals','manuals','identity documents','other']],
-                'issue'=>['date','Issue date'],'expires'=>['date','Expiry date'],'tags'=>$tags,'attachments'=>$file,'notes'=>$notes],
-            'music_tracks'=>['date'=>['date','Release date'],'artist'=>['text','Artist'],'features'=>['text','Featured artists'],
-                'album'=>['text','Album'],'genre'=>['text','Genre'],'favorite'=>['check','Favorite'],'url'=>['url','External link']],
-            'playlists'=>['notes'=>['area','Playlist notes']],
-            'playlist_items'=>['playlist'=>['link','Playlist',['playlists']],'track'=>['link','Track',['music_tracks']],'position'=>['number','Order']],
-            'business_inventory'=>['sku'=>['text','SKU'],'quantity'=>['number','Quantity'],'cost'=>['money','Cost'],'price'=>['money','Price'],
-                'location'=>['text','Stock location'],'threshold'=>['number','Low-stock threshold']],
-            'income_entries'=>['date'=>['date','Date'],'contact'=>$contact,'client'=>['text','Client'],'description'=>['area','Description'],
-                'amount'=>['money','Amount'],'method'=>['text','Payment method'],'status'=>['select','Status',['pending','paid','refunded']]],
-            'appointments'=>['time'=>['datetime','Starts'],'contact'=>$contact,'client'=>['text','Client'],'service'=>['text','Service'],
-                'status'=>['select','Status',['planned','done','cancelled']]],
-            'work_orders'=>['date'=>['date','Order date'],'contact'=>$contact,'client'=>['text','Client'],
-                'discount_type'=>['select','Discount type',['bought at a discount','given discount']],
-                'discount'=>['money','Discount'],'amount'=>['money','Amount'],'status'=>$work,'attachments'=>$file],
-            'work_order_items','work_order_deliveries'=>['order'=>['link','Work order',['work_orders']],
-                'duration'=>['positive','Duration (minutes)'],'quantity'=>['positive','Quantity'],'sent'=>['date','Sent date'],
-                'amount'=>['money','Amount'],'files_deleted'=>['check','Files deleted'],'attachments'=>$file],
-            'recipes'=>['ingredients'=>['area','Ingredients'],'steps'=>['area','Steps'],'tags'=>$tags],
-            'meal_plans'=>['date'=>['date','Meal date'],'meal'=>['select','Meal',['breakfast','lunch','dinner','snack']],
-                'recipe'=>['link','Recipe',['recipes']],'notes'=>$notes],
-            'work_shifts'=>['time'=>['datetime','Starts'],'end'=>['datetime','Ends'],'role'=>['text','Role'],'pay'=>['money','Pay']],
-            'daily_logs','journal_entries'=>['time'=>['datetime','Entry date and time'],'category'=>['text','Category'],
-                'content'=>['private','Entry text'],'contact'=>$contact,'tags'=>$tags,'rating'=>['rating','Mood (1 low to 10 high)'],
+            'receipts'=>['merchant'=>['text',ltText('merchant')],'date'=>['date',ltText('purchase_date')],'amount'=>['money',ltText('amount')],'category'=>['text',ltText('category')],'attachments'=>$file],
+            'chores'=>['due'=>['date',ltText('due_date')],'frequency'=>['select',ltText('repeat'),['daily','weekly','monthly','yearly']],
+                'interval'=>['positive',ltText('repeat_every')],'done'=>['check',ltText('done')],'notes'=>$notes],
+            'lists'=>['type'=>['select',ltText('list_type'),['general','shopping','grocery','packing']],'notes'=>$notes],
+            'list_items'=>['list'=>['link',ltText('list'),['lists']],'quantity'=>['number',ltText('quantity')],'category'=>['text',ltText('category')],
+                'done'=>['check',ltText('done')],'position'=>['number',ltText('order')]],
+            'inventory_items'=>['room'=>['text',ltText('room')],'quantity'=>['number',ltText('quantity')],'value'=>['money',ltText('value')],'attachments'=>$file],
+            'documents'=>['category'=>['select',ltText('category'),['receipts','tax docs','day stubs','journals','manuals','identity documents','other']],
+                'issue'=>['date',ltText('issue_date')],'expires'=>['date',ltText('expiry_date')],'tags'=>$tags,'attachments'=>$file,'notes'=>$notes],
+            'music_tracks'=>['date'=>['date',ltText('release_date')],'artist'=>['text',ltText('artist')],'features'=>['text',ltText('featured_artists')],
+                'album'=>['text',ltText('album')],'genre'=>['text',ltText('genre')],'favorite'=>['check',ltText('favorite')],'url'=>['url',ltText('external_link')]],
+            'playlists'=>['notes'=>['area',ltText('playlist_notes')]],
+            'playlist_items'=>['playlist'=>['link',ltText('playlist'),['playlists']],'track'=>['link',ltText('track'),['music_tracks']],'position'=>['number',ltText('order')]],
+            'business_inventory'=>['sku'=>['text',ltText('sku')],'quantity'=>['number',ltText('quantity')],'cost'=>['money',ltText('cost')],'price'=>['money',ltText('price')],
+                'location'=>['text',ltText('stock_location')],'threshold'=>['number',ltText('low_stock_threshold')]],
+            'income_entries'=>['date'=>['date',ltText('date')],'contact'=>$contact,'client'=>['text',ltText('client')],'description'=>['area',ltText('description')],
+                'amount'=>['money',ltText('amount')],'method'=>['text',ltText('payment_method')],'status'=>['select',ltText('status'),['pending','paid','refunded']]],
+            'appointments'=>['time'=>['datetime',ltText('starts')],'contact'=>$contact,'client'=>['text',ltText('client')],'service'=>['text',ltText('service')],
+                'status'=>['select',ltText('status'),['planned','done','cancelled']]],
+            'work_orders'=>['date'=>['date',ltText('order_date')],'contact'=>$contact,'client'=>['text',ltText('client')],
+                'discount_type'=>['select',ltText('discount_type'),['bought at a discount','given discount']],
+                'discount'=>['money',ltText('discount')],'amount'=>['money',ltText('amount')],'status'=>$work,'attachments'=>$file],
+            'work_order_items','work_order_deliveries'=>['order'=>['link',ltText('work_order'),['work_orders']],
+                'duration'=>['positive',ltText('duration_minutes')],'quantity'=>['positive',ltText('quantity')],'sent'=>['date',ltText('sent_date')],
+                'amount'=>['money',ltText('amount')],'files_deleted'=>['check',ltText('files_deleted')],'attachments'=>$file],
+            'recipes'=>['ingredients'=>['area',ltText('ingredients')],'steps'=>['area',ltText('steps')],'tags'=>$tags],
+            'meal_plans'=>['date'=>['date',ltText('meal_date')],'meal'=>['select',ltText('meal'),['breakfast','lunch','dinner','snack']],
+                'recipe'=>['link',ltText('recipe'),['recipes']],'notes'=>$notes],
+            'work_shifts'=>['time'=>['datetime',ltText('starts')],'end'=>['datetime',ltText('ends')],'role'=>['text',ltText('role')],'pay'=>['money',ltText('pay')]],
+            'daily_logs','journal_entries'=>['time'=>['datetime',ltText('entry_date_and_time')],'category'=>['text',ltText('category')],
+                'content'=>['private',ltText('entry_text')],'contact'=>$contact,'tags'=>$tags,'rating'=>['rating',ltText('mood_1_low_to_10_high')],
                 'notes'=>$notes,'attachments'=>$file],
             'intimacy_events'=>self::intimacy($prefs),
-            'incidents'=>['time'=>['datetime','Date and time'],'people'=>['links','People involved',['contacts']],
-                'location'=>['text','Location'],'content'=>['private','Description'],'severity'=>['select','Severity',['low','medium','high']],
-                'follow_up'=>['select','Follow-up',['open','monitoring','resolved']],'attachments'=>$file,'notes'=>$notes],
-            'notes'=>['content'=>['private','Note'],'tags'=>$tags],
-            'attachments'=>['upload'=>['upload','Image or PDF'],'notes'=>$notes],
-            'websites'=>['url'=>['url','Website URL'],'category'=>['select','Category',['Planner','Organize','Accounts','Banks','Finances','Bills',
-                'Personal','Family','Vehicles','Medical','Work']], 'notes'=>['area','Notes'],'favorite'=>['check','Favorite'],
-                'account'=>['link','Managed account',['accounts']]],
-            default=>throw new Problem('Unknown module.'),
+            'incidents'=>['time'=>['datetime',ltText('date_and_time')],'people'=>['links',ltText('people_involved'),['contacts']],
+                'location'=>['text',ltText('location')],'content'=>['private',ltText('description')],'severity'=>['select',ltText('severity'),['low','medium','high']],
+                'follow_up'=>['select',ltText('follow_up'),['open','monitoring','resolved']],'attachments'=>$file,'notes'=>$notes],
+            'notes'=>['content'=>['private',ltText('note')],'tags'=>$tags],
+            'attachments'=>['upload'=>['upload',ltText('image_or_pdf')],'notes'=>$notes],
+            'websites'=>['url'=>['url',ltText('website_url')],'category'=>['select',ltText('category'),['Planner','Organize','Accounts','Banks','Finances','Bills',
+                'Personal','Family','Vehicles','Medical','Work']], 'notes'=>['area',ltText('notes')],'favorite'=>['check',ltText('favorite')],
+                'account'=>['link',ltText('managed_account'),['accounts']]],
+            default=>throw new Problem(ltText('unknown_module')),
         };
     }
 
     private static function intimacy(array $prefs): array
     {
         $fields = [
-            'date'=>['date','Event date'],'start'=>['clock','Start time'],'end'=>['clock','End time'],'duration'=>['positive','Duration (minutes)'],
-            'people'=>['links','Associated contacts',['contacts']],
-            'type'=>['select','Event type',self::options($prefs['intimacy_types'] ?? '', ['Date','Romantic encounter','Affectionate activity',
+            'date'=>['date',ltText('event_date')],'start'=>['clock',ltText('start_time')],'end'=>['clock',ltText('end_time')],'duration'=>['positive',ltText('duration_minutes')],
+            'people'=>['links',ltText('associated_contacts'),['contacts']],
+            'type'=>['select',ltText('event_type'),self::options($prefs['intimacy_types'] ?? '', ['Date','Romantic encounter','Affectionate activity',
                 'Intimate encounter','Sexual activity','Other'])],
-            'privacy'=>['select','Privacy level',['Owner only','Extra private']],
-            'tags'=>['text','Tags (comma-separated)'],
+            'privacy'=>['select',ltText('privacy_level'),['Owner only','Extra private']],
+            'tags'=>['text',ltText('tags_comma_separated')],
         ];
         foreach ([
-            'location'=>'Location or setting','content'=>'General description','notes'=>'Personal notes','activity'=>'Activity details',
-            'preferences'=>'Preferences','boundaries'=>'Boundaries','communication_notes'=>'Communication notes',
-            'reactions'=>'Emotional reactions','reflection'=>'Personal reflections','context'=>'Relationship context',
-            'follow_up'=>'Follow-up notes','custom'=>'Custom questions and answers',
+            'location'=>ltText('location_or_setting'),'content'=>ltText('general_description'),'notes'=>ltText('personal_notes'),'activity'=>ltText('activity_details'),
+            'preferences'=>ltText('preferences'),'boundaries'=>ltText('boundaries'),'communication_notes'=>ltText('communication_notes'),
+            'reactions'=>ltText('emotional_reactions'),'reflection'=>ltText('personal_reflections'),'context'=>ltText('relationship_context'),
+            'follow_up'=>ltText('follow_up_notes'),'custom'=>ltText('custom_questions_and_answers'),
         ] as $key=>$label) {
             $fields[$key] = ['private',$label];
         }
         foreach (self::QUESTIONS as $index=>$question) {
+            $question = ltText($question);
             $fields['question_' . ($index+1)] = match ($index) {
                 1,2=>['private-choice',$question,['Yes','No','Unknown','Not recorded']],
                 3,4,5,6,7=>['private-rating',$question],
                 default=>['private',$question],
             };
         }
-        foreach (['Overall experience','Enjoyment','Emotional connection','Communication','Comfort','Trust','Satisfaction','After-event feelings'] as $index=>$label) {
-            $fields['rating_' . ($index+1)] = ['private-rating',$label . ' (1 low to 10 high)'];
+        foreach ([ltText('overall_experience'),ltText('enjoyment'),ltText('emotional_connection'),ltText('communication'),ltText('comfort'),ltText('trust'),ltText('satisfaction'),ltText('after_event_feelings')] as $index=>$label) {
+            $fields['rating_' . ($index+1)] = ['private-rating',ltText('label_1_low_to_10_high',['label'=>$label])];
         }
         foreach (array_slice(self::options($prefs['intimacy_questions'] ?? '', []),0,10) as $index=>$question) {
             $fields['custom_question_' . ($index+1)] = ['private',$question];
@@ -208,7 +219,7 @@ final class Catalog
     {
         $request = self::text($input['request_id'] ?? '',32);
         if ($request !== '' && !preg_match('/^[a-f0-9]{32}$/D',$request)) {
-            throw new Problem('Invalid save request. Reload the editor.');
+            throw new Problem(ltText('invalid_save_request_reload_the_editor'));
         }
         return $store->transaction(function () use ($store,$owner,$kind,$input,$prefs,$file,$request): array {
             if ($request !== '') {
@@ -217,7 +228,7 @@ final class Catalog
                     [$owner,$request])->fetch();
                 if ($receipt) {
                     if ($receipt['kind'] !== $kind) {
-                        throw new Problem('Invalid save request. Reload the editor.');
+                        throw new Problem(ltText('invalid_save_request_reload_the_editor'));
                     }
                     return $receipt;
                 }
@@ -237,21 +248,21 @@ final class Catalog
         $id = $input['id'] ?? '';
         $old = $id === '' ? null : $store->record($owner,$id,$kind);
         if ($old && (string)$old['revision'] !== (string)($input['revision'] ?? '')) {
-            throw new Problem('This record changed in another view. Reload it before saving.');
+            throw new Problem(ltText('this_record_changed_in_another_view'));
         }
         if ($kind === 'personal_profile' && !$old && $store->run(
             "SELECT 1 FROM records WHERE owner=? AND kind='personal_profile' AND deleted_at IS NULL",[$owner])->fetchColumn()) {
-            throw new Problem('Edit the existing personal profile.');
+            throw new Problem(ltText('edit_the_existing_personal_profile'));
         }
         $title = self::text($input['title'] ?? '', 180);
         if ($kind === 'contacts' && $title === '') {
             $title = trim(self::text($input['first'] ?? '',80) . ' ' . self::text($input['last'] ?? '',80));
         }
         if ($kind === 'intimacy_events') {
-            $title = 'Private event';
+            $title = ltText('private_event');
         }
         if ($title === '') {
-            throw new Problem('Enter a title or display name.');
+            throw new Problem(ltText('enter_a_title_or_display_name'));
         }
         $p = ['_links'=>[]];
         $private = [];
@@ -264,12 +275,12 @@ final class Catalog
             if ($type === 'link' || $type === 'links') {
                 $ids = $type === 'link' ? [$input[$field] ?? ''] : ($input[$field] ?? []);
                 if (!is_array($ids) || count($ids) > 40) {
-                    throw new Problem("$label: choose up to 40 records.");
+                    throw new Problem(ltText('label_choose_up_to_40_records',['label'=>$label]));
                 }
                 foreach (array_unique(array_filter($ids)) as $target) {
                     $linked = $store->record($owner, self::text($target,36));
                     if (!in_array($linked['kind'],$options,true)) {
-                        throw new Problem("$label: this record type cannot be linked.");
+                        throw new Problem(ltText('label_this_record_type_cannot_be',['label'=>$label]));
                     }
                     $p['_links'][$field][] = $target;
                 }
@@ -285,10 +296,10 @@ final class Catalog
                         Planner::date($value);
                     }
                     if ($field === 'email' && !filter_var($value,FILTER_VALIDATE_EMAIL)) {
-                        throw new Problem('Email: enter a valid email.');
+                        throw new Problem(ltText('email_enter_a_valid_email'));
                     }
                     if ($field === 'card' && !preg_match('/^(?:[0-9][ -]?){12,18}[0-9]$/D',$value)) {
-                        throw new Problem('Card number: enter 13–19 digits, optionally separated by spaces or dashes.');
+                        throw new Problem(ltText('card_number_enter_13_19_digits'));
                     }
                     $private[$field] = $value;
                     if ($field === 'card') {
@@ -301,7 +312,7 @@ final class Catalog
             }
             if (self::privateType($type)) {
                 if ($value !== '' && $type === 'private-choice' && !in_array($value,$options,true)) {
-                    throw new Problem("$label: select a listed answer.");
+                    throw new Problem(ltText('label_select_a_listed_answer',['label'=>$label]));
                 }
                 if ($value !== '' && $type === 'private-rating') {
                     $value = (string)self::integer($value,1,10,$label);
@@ -322,19 +333,19 @@ final class Catalog
             $p[$field] = match ($type) {
                 'date'=>Planner::date($value)->format('Y-m-d'),
                 'datetime'=>Planner::utc(Planner::local($value,new DateTimeZone($prefs['zone']))),
-                'month'=>preg_match('/^\d{4}-(0[1-9]|1[0-2])$/D',$value) ? $value : throw new Problem("$label: enter a valid month."),
-                'clock'=>preg_match('/^([01]\d|2[0-3]):[0-5]\d$/D',$value) ? $value : throw new Problem("$label: enter a valid time."),
+                'month'=>preg_match('/^\d{4}-(0[1-9]|1[0-2])$/D',$value) ? $value : throw new Problem(ltText('label_enter_a_valid_month',['label'=>$label])),
+                'clock'=>preg_match('/^([01]\d|2[0-3]):[0-5]\d$/D',$value) ? $value : throw new Problem(ltText('label_enter_a_valid_time',['label'=>$label])),
                 'number'=>self::integer($value,0,1000000000,$label),
                 'positive'=>self::integer($value,1,$field === 'interval' ? 365 : 1000000,$label),
                 'rating'=>self::integer($value,1,10,$label),
                 'money'=>self::money($value,$old ? (Store::payload($old)[$field]['currency'] ?? $prefs['currency']) : $prefs['currency']),
-                'select'=>in_array($value,$options,true) ? $value : throw new Problem("$label: choose a listed value."),
+                'select'=>in_array($value,$options,true) ? $value : throw new Problem(ltText('label_choose_a_listed_value',['label'=>$label])),
                 'zone'=>in_array($value,DateTimeZone::listIdentifiers(DateTimeZone::ALL_WITH_BC),true)
-                    ? $value : throw new Problem("$label: choose a valid IANA time zone."),
-                'email'=>filter_var($value,FILTER_VALIDATE_EMAIL) ? $value : throw new Problem("$label: enter a valid email."),
+                    ? $value : throw new Problem(ltText('label_choose_a_valid_iana_time',['label'=>$label])),
+                'email'=>filter_var($value,FILTER_VALIDATE_EMAIL) ? $value : throw new Problem(ltText('label_enter_a_valid_email',['label'=>$label])),
                 'url'=>filter_var($value,FILTER_VALIDATE_URL) && in_array(strtolower(parse_url($value,PHP_URL_SCHEME)),['http','https'],true)
                     && parse_url($value,PHP_URL_USER) === null
-                    ? $value : throw new Problem("$label: enter an HTTP or HTTPS URL without login information."),
+                    ? $value : throw new Problem(ltText('label_enter_an_http_or_https',['label'=>$label])),
                 default=>$value,
             };
         }
@@ -354,7 +365,7 @@ final class Catalog
             } elseif ($old) {
                 $p += array_intersect_key(Store::payload($old),array_flip(['mime','size','sha256']));
             } else {
-                throw new Problem('Choose an image or PDF to upload.');
+                throw new Problem(ltText('choose_an_image_or_pdf_to'));
             }
         }
         return $store->save($owner,$kind,$title,$p,$private,$old,$seedId);
@@ -363,11 +374,11 @@ final class Catalog
     public static function text(mixed $input, int $max, bool $preserveWhitespace = false): string
     {
         if (!is_string($input) && !is_int($input)) {
-            throw new Problem('A field has an invalid value.');
+            throw new Problem(ltText('a_field_has_an_invalid_value'));
         }
         $value = $preserveWhitespace ? (string)$input : trim((string)$input);
         if (!mb_check_encoding($value,'UTF-8') || mb_strlen($value) > $max || str_contains($value,"\0")) {
-            throw new Problem("A field exceeds $max characters or contains invalid text.");
+            throw new Problem(ltText('a_field_exceeds_max_characters_or',['max'=>$max]));
         }
         return $value;
     }
@@ -376,7 +387,7 @@ final class Catalog
     {
         $value = filter_var($input,FILTER_VALIDATE_INT,['options'=>['min_range'=>$min,'max_range'=>$max]]);
         if ($value === false) {
-            throw new Problem("$label: enter a whole number between $min and $max.");
+            throw new Problem(ltText('label_enter_a_whole_number_between',['label'=>$label,'min'=>$min,'max'=>$max]));
         }
         return $value;
     }
@@ -391,7 +402,7 @@ final class Catalog
             default=>2,
         };
         if (!preg_match('/^(\d{1,9})(?:\.(\d{1,4}))?$/D',$input,$parts) || strlen($parts[2] ?? '') > $scale) {
-            throw new Problem("Enter an amount with up to $scale decimal places.");
+            throw new Problem(ltText('enter_an_amount_with_up_to',['scale'=>$scale]));
         }
         $minor = (int)($parts[1] . str_pad($parts[2] ?? '',$scale,'0'));
         return ['minor'=>$minor,'currency'=>$currency,'scale'=>$scale];
@@ -408,15 +419,15 @@ final class Catalog
     {
         $path = $file['tmp_name'];
         if ($file['error'] !== UPLOAD_ERR_OK || !is_uploaded_file($path) || $file['size'] > 10*1024*1024 || $file['size'] < 1) {
-            throw new Problem('The file did not upload successfully. The maximum size is 10 MB.');
+            throw new Problem(ltText('the_file_did_not_upload_successfully'));
         }
         $mime = (new finfo(FILEINFO_MIME_TYPE))->file($path);
         if (!in_array($mime,['image/png','image/jpeg','image/gif','image/webp','application/pdf'],true)) {
-            throw new Problem('Choose a PNG, JPEG, GIF, WebP or PDF file.');
+            throw new Problem(ltText('choose_a_png_jpeg_gif_webp'));
         }
         $bytes = file_get_contents($path);
         if ($bytes === false || ($mime === 'application/pdf' ? !str_starts_with($bytes,'%PDF-') : getimagesizefromstring($bytes) === false)) {
-            throw new Problem('The file contents do not match the file type.');
+            throw new Problem(ltText('the_file_contents_do_not_match'));
         }
         return [['mime'=>$mime,'size'=>strlen($bytes),'sha256'=>hash('sha256',$bytes)],$bytes];
     }

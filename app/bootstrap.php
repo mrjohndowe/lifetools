@@ -1,6 +1,8 @@
 <?php
 declare(strict_types=1);
 
+require_once __DIR__ . '/lang.php';
+
 define('LT_ROOT', dirname(__DIR__));
 ini_set('display_errors', '0');
 date_default_timezone_set('UTC');
@@ -35,11 +37,11 @@ function ltAtomic(string $path, string $content): void
     $tmp = $path . '.' . bin2hex(random_bytes(8)) . '.tmp';
     try {
         if (file_put_contents($tmp, $content, LOCK_EX) !== strlen($content)) {
-            throw new Problem('Could not write the protected file.');
+            throw new Problem(ltText('could_not_write_the_protected_file'));
         }
         chmod($tmp, 0600);
         if (!rename($tmp, $path)) {
-            throw new Problem('Could not publish the protected file.');
+            throw new Problem(ltText('could_not_publish_the_protected_file'));
         }
     } finally {
         if (is_file($tmp)) {
@@ -71,7 +73,7 @@ function ltLock(string $path, callable $callback, bool $wait = true): mixed
 {
     $lock = fopen($path, 'c+b');
     if (!$lock) {
-        throw new Problem('Could not open the installation lock.');
+        throw new Problem(ltText('could_not_open_the_installation_lock'));
     }
     try {
         if (!flock($lock, LOCK_EX | ($wait ? 0 : LOCK_NB))) {
@@ -88,7 +90,7 @@ function ltSeal(string $plain, string $key, string $aad): string
     $nonce = random_bytes(12);
     $cipher = openssl_encrypt($plain, 'aes-256-gcm', $key, OPENSSL_RAW_DATA, $nonce, $tag, $aad, 16);
     if ($cipher === false) {
-        throw new Problem('Encryption failed.');
+        throw new Problem(ltText('encryption_failed'));
     }
     return base64_encode($nonce . $tag . $cipher);
 }
@@ -97,12 +99,12 @@ function ltOpen(string $encoded, string $key, string $aad): string
 {
     $bytes = base64_decode($encoded, true);
     if ($bytes === false || strlen($bytes) < 28) {
-        throw new Problem('Encrypted data could not be authenticated.');
+        throw new Problem(ltText('encrypted_data_could_not_be_authenticated'));
     }
     $plain = openssl_decrypt(substr($bytes, 28), 'aes-256-gcm', $key, OPENSSL_RAW_DATA,
         substr($bytes, 0, 12), substr($bytes, 12, 16), $aad);
     if ($plain === false) {
-        throw new Problem('Encrypted data could not be authenticated.');
+        throw new Problem(ltText('encrypted_data_could_not_be_authenticated'));
     }
     return $plain;
 }

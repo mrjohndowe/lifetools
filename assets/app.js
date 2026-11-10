@@ -1,10 +1,16 @@
 'use strict';
 
+const language = JSON.parse(document.getElementById('lifetools-language').textContent);
+
+function text(key, params = {}) {
+    return language.messages[key].replace(/\{(\w+)\}/g, (placeholder, name) => params[name] ?? placeholder);
+}
+
 async function post(api, data) {
     const response = await fetch('index.php?api=' + api, { method: 'POST', body: data, cache: 'no-store' });
     const result = await response.json().catch(() => ({}));
     if (!response.ok) {
-        const error = new Error(result.error || 'LifeTools could not confirm the action.');
+        const error = new Error(result.error || text('lifetools_could_not_confirm_the_action'));
         error.responseReceived = response.status === 422 && typeof result.error === 'string';
         throw error;
     }
@@ -48,7 +54,7 @@ if (setup) {
         const dual = fields.mode.value === 'dual';
         document.getElementById('mysql-options').hidden = !dual;
         document.getElementById('mysql-skipped').hidden = dual;
-        document.getElementById('setup-progress').textContent = 'Step ' + (step + 1) + ' of 9';
+        document.getElementById('setup-progress').textContent = text('step_current_of_total', { current: step + 1, total: steps.length });
         setup.dataset.step = String(step + 1);
         next.hidden = step === 8;
         back.hidden = step === 0;
@@ -58,13 +64,18 @@ if (setup) {
         if (step === 8) {
             const summary = document.getElementById('setup-summary');
             summary.replaceChildren();
-            const details = { Storage: dual ? 'SQLite with MySQL backup' : 'SQLite only', 'SQLite file': fields.path.value,
-                Administrator: fields.login.value, Appearance: fields.theme.value, 'Time zone': fields.zone.value,
-                Content: fields.seed.checked ? 'Fictional demo' : 'Empty workspace' };
-            for (const [label, value] of Object.entries(details)) {
+            const details = [
+                ['storage', dual ? text('sqlite_with_mysql_backup') : text('sqlite_only')],
+                ['sqlite_file', fields.path.value],
+                ['administrator', fields.login.value],
+                ['appearance', language.options[fields.theme.value]],
+                ['time_zone', fields.zone.value],
+                ['content', fields.seed.checked ? text('fictional_demo') : text('empty_workspace')],
+            ];
+            for (const [key, value] of details) {
                 const term = document.createElement('dt');
                 const description = document.createElement('dd');
-                term.textContent = label;
+                term.textContent = text(key);
                 description.textContent = value;
                 summary.append(term, description);
             }
@@ -78,11 +89,11 @@ if (setup) {
                 if (!control.reportValidity()) return;
             }
             if (step === 4 && (!fields.key_saved.checked || !/^[A-Za-z0-9+/]{43}=$/.test(fields.key.value))) {
-                message.textContent = 'Enter a 32-byte base64 key and confirm that you saved it.';
+                message.textContent = text('enter_a_32_byte_base64_key');
                 return;
             }
             if (step === 5 && fields.password.value !== fields.confirmation.value) {
-                message.textContent = 'The passwords must match.';
+                message.textContent = text('the_passwords_must_match');
                 return;
             }
         }
@@ -98,7 +109,7 @@ if (setup) {
     next.addEventListener('click', () => move(1));
     back.addEventListener('click', () => move(-1));
     cancel.addEventListener('click', () => {
-        message.textContent = 'Setup is incomplete. LifeTools is available after you finish onboarding.';
+        message.textContent = text('setup_is_incomplete_lifetools_is_available');
         step = 0;
         render();
     });
@@ -113,8 +124,8 @@ if (setup) {
         persist();
         document.documentElement.dataset.theme = fields.theme.value;
         const length = fields.password.value.length;
-        document.getElementById('password-strength').textContent = length < 12 ? 'Use at least 12 characters.'
-            : length < 16 ? 'Meets minimum length.' : 'Long password.';
+        document.getElementById('password-strength').textContent = length < 12 ? text('use_at_least_12_characters')
+            : length < 16 ? text('meets_minimum_length') : text('long_password');
     });
     document.getElementById('generate-key').addEventListener('click', async () => {
         try {
@@ -130,9 +141,9 @@ if (setup) {
     copy.addEventListener('click', async () => {
         try {
             await navigator.clipboard.writeText(keyOutput.textContent);
-            message.textContent = 'Copied. Store the key somewhere private.';
+            message.textContent = text('copied_store_the_key_somewhere_private');
         } catch {
-            message.textContent = 'Select and copy the displayed key manually.';
+            message.textContent = text('select_and_copy_the_displayed_key');
         }
     });
     document.getElementById('test-mysql').addEventListener('click', async () => {
@@ -141,11 +152,11 @@ if (setup) {
         for (const name of ['csrf','mysql_host','mysql_port','mysql_database','mysql_user','mysql_password']) {
             data.set(name, fields[name].value);
         }
-        status.textContent = 'Checking backup connection…';
+        status.textContent = text('checking_backup_connection');
         try {
             status.textContent = (await post('setup', data)).message;
         } catch (error) {
-            status.textContent = error.message + ' You can continue in dual mode.';
+            status.textContent = text('you_can_continue_in_dual_mode', { error: error.message });
         }
     });
     render();
@@ -188,7 +199,7 @@ function bindEditor(form) {
         running = true;
         saveButton.disabled = true;
         if (mode === 'quick') form.querySelector('.form-grid').inert = true;
-        status.textContent = 'Saving…';
+        status.textContent = text('saving');
         const submitted = pending.version;
         const attempted = current;
         try {
@@ -198,18 +209,18 @@ function bindEditor(form) {
             form.elements.revision.value = result.revision;
             actions.forEach((action) => action.elements.revision.value = result.revision);
             acknowledged = submitted;
-            status.textContent = 'Saved to SQLite.';
+            status.textContent = text('saved_to_sqlite');
             if (mode === 'quick' && current === submitted) {
                 const link = document.createElement('a');
                 link.href = 'index.php?' + new URLSearchParams({ view: 'record', kind: form.elements.kind.value, id: result.id });
-                link.textContent = 'Open record';
+                link.textContent = text('open_record');
                 status.append(' ', link);
                 form.querySelector('.form-grid').hidden = true;
                 saveButton.hidden = true;
             }
         } catch (error) {
             if (error.responseReceived) pending = undefined;
-            status.textContent = error.message + ' Your edits are still here. Select Save record to retry.';
+            status.textContent = text('your_edits_are_still_here_select', { error: error.message });
         } finally {
             running = false;
             saveButton.disabled = false;
@@ -228,7 +239,7 @@ function bindEditor(form) {
         const changed = () => {
             current++;
             disableActions(true);
-            status.textContent = 'Unsaved edits…';
+            status.textContent = text('unsaved_edits');
             clearTimeout(timer);
             timer = setTimeout(save, 750);
         };
@@ -250,11 +261,11 @@ if (quick) {
     let generation = 0;
     async function load() {
         const id = ++generation;
-        body.textContent = 'Loading…';
+        body.textContent = text('loading');
         try {
             const response = await fetch('index.php?quick=' + encodeURIComponent(type.value));
             if (!response.ok || response.headers.get('X-LifeTools-Fragment') !== 'editor') {
-                throw new Error('Reload the page and try again.');
+                throw new Error(text('reload_the_page_and_try_again'));
             }
             const html = await response.text();
             if (id !== generation) return;
@@ -292,7 +303,7 @@ if (reveal) {
         block.hidden = true;
         value.textContent = '';
         status.textContent = '';
-        copy.textContent = 'Copy';
+        copy.textContent = text('copy');
     }
     document.querySelectorAll('[data-reveal]').forEach((button) => button.addEventListener('click', () => {
         clear();
@@ -305,7 +316,7 @@ if (reveal) {
         const seq = ++generation;
         const data = new FormData(form);
         form.elements.password.value = '';
-        status.textContent = 'Checking password…';
+        status.textContent = text('checking_password');
         try {
             const result = await post('reveal', data);
             if (seq !== generation || !reveal.open) return;
@@ -321,14 +332,14 @@ if (reveal) {
         try {
             const copied = value.textContent;
             await navigator.clipboard.writeText(copied);
-            copy.textContent = 'Copied';
+            copy.textContent = text('copied');
             setTimeout(async () => {
                 try {
                     if (await navigator.clipboard.readText() === copied) await navigator.clipboard.writeText('');
                 } catch { /* The browser may require a new gesture. */ }
             }, 30000);
         } catch {
-            copy.textContent = 'Copy unavailable';
+            copy.textContent = text('copy_unavailable');
         }
     });
     reveal.addEventListener('close', clear);
@@ -343,16 +354,16 @@ document.querySelectorAll('[data-confirm]').forEach((form) => form.addEventListe
     if (!window.confirm(form.dataset.confirm)) event.preventDefault();
 }));
 document.querySelector('[data-maintenance]')?.addEventListener('submit', (event) => {
-    if (event.currentTarget.elements.operation.value === 'restore' && !window.confirm('Replace the workspace with this backup?')) {
+    if (event.currentTarget.elements.operation.value === 'restore' && !window.confirm(text('replace_the_workspace_with_this_backup'))) {
         event.preventDefault();
     }
 });
 
 document.querySelectorAll('[data-password-generator]').forEach((button) => button.addEventListener('click', () => {
-    const length = Number(window.prompt('Password length (12–64)', '24'));
+    const length = Number(window.prompt(text('password_length_12_64'), '24'));
     if (!Number.isInteger(length) || length < 12 || length > 64) return;
     const choices = { l: 'abcdefghijklmnopqrstuvwxyz', u: 'ABCDEFGHIJKLMNOPQRSTUVWXYZ', n: '0123456789', s: '!@#$%^&*_-+=?' };
-    const selected = [...new Set((window.prompt('Character sets: l lowercase, u uppercase, n numbers, s symbols', 'luns') || '').toLowerCase())]
+    const selected = [...new Set((window.prompt(text('character_sets_l_lowercase_u_uppercase'), 'luns') || '').toLowerCase())]
         .map((key) => choices[key]).filter(Boolean);
     if (!selected.length) return;
     function pick(size) {
@@ -369,7 +380,7 @@ document.querySelectorAll('[data-password-generator]').forEach((button) => butto
         [password[i], password[j]] = [password[j], password[i]];
     }
     button.closest('.secret-field').querySelector('input[type="password"]').value = password.join('');
-    button.textContent = 'Generated · save to keep';
+    button.textContent = text('generated_save_to_keep');
 }));
 
 const theme = document.querySelector('[data-theme-form]');
@@ -394,9 +405,13 @@ if (document.querySelector('.layout')?.dataset.mode === 'dual') {
                 const banner = document.getElementById('mirror-banner');
                 banner.hidden = status.mysql === 'reachable';
                 if (!banner.hidden) {
-                    banner.textContent = 'MySQL backup is degraded or pending. Your changes are saved in SQLite. ' + (status.lastError || '');
+                    banner.textContent = text('mysql_backup_is_degraded_or_pending', { error: status.lastError || '' });
                 }
-                document.querySelectorAll('[data-health]').forEach((target) => target.textContent = status[target.dataset.health] ?? '—');
+                document.querySelectorAll('[data-health]').forEach((target) => {
+                    const field = target.dataset.health;
+                    const value = status[field];
+                    target.textContent = field === 'mysql' ? (language.options[value] ?? value) : (value ?? '—');
+                });
             } catch { /* Retry independently of editing. */ }
         }
         setTimeout(sync, 4000);
@@ -422,7 +437,7 @@ if (dueList) {
             if (!result.events.length) {
                 const empty = document.createElement('p');
                 empty.className = 'empty-inline';
-                empty.textContent = 'You’re caught up on reminders.';
+                empty.textContent = text('youre_caught_up_on_reminders');
                 dueList.append(empty);
             }
             for (const event of result.events) {

@@ -58,7 +58,7 @@ final class Views
             '<title>'.self::th('page_title',['title'=>$title]).'</title><link rel="stylesheet" href="assets/style.css?v=star-buttons">'.
             '<script type="application/json" id="lifetools-language">'.
             json_encode($browserLanguage,JSON_THROW_ON_ERROR | JSON_HEX_TAG | JSON_UNESCAPED_UNICODE).
-            '</script><script src="assets/app.js?v=delivery-shifts" defer></script></head><body>';
+            '</script><script src="assets/app.js?v=delivery-pickups" defer></script></head><body>';
     }
 
     public static function error(string $message): void
@@ -809,6 +809,12 @@ final class Views
         foreach ($fields as $field=>[$type,$label]) {
             $options = $fields[$field][2] ?? [];
             $value = $p[$field] ?? '';
+            if (in_array($kind,['income_entries','delivery_shifts'],true) && in_array($field,['pickup','doordash_pay','customer_tips'],true)) {
+                if ($field === 'pickup') {
+                    self::deliveryPickups($store,$owner,$prefs,$p);
+                }
+                continue;
+            }
             if ($kind === 'income_entries' && $field === 'shift_start') {
                 echo '<h2 class="wide">'.self::th('delivery_rideshare').'</h2>';
             }
@@ -872,6 +878,38 @@ final class Views
         }
         echo '</div><div class="actions editor-actions"><button class="primary" type="submit">'.self::th('save_record').'</button>'.
             '<output aria-live="polite" class="save-status">'.($auto ? self::th('edits_save_automatically') : '').'</output></div></form>';
+    }
+
+    private static function deliveryPickups(Store $store,string $owner,array $prefs,array $payload): void
+    {
+        $currency = $payload['doordash_pay']['currency'] ?? $prefs['currency'];
+        $pickupRow = static function (array $row) use ($currency): string {
+            return '<div class="form-grid" data-pickup-row>'.
+                self::input('pickup_locations[]',ltText('delivery_pickup'),$row['pickup'] ?? '','text','list="delivery-pickup-options" maxlength="500"').
+                self::input('pickup_pay[]',ltText('delivery_pay').' ('.$currency.')',
+                    isset($row['doordash_pay']['minor']) ? Catalog::decimal($row['doordash_pay']) : '','text','inputmode="decimal"').
+                self::input('pickup_tips[]',ltText('delivery_tips').' ('.$currency.')',
+                    isset($row['customer_tips']['minor']) ? Catalog::decimal($row['customer_tips']) : '','text','inputmode="decimal"').
+                '<button type="button" data-remove-pickup>'.self::th('delivery_remove_pickup').'</button></div>';
+        };
+        $choices = $store->run("WITH shifts AS (
+                SELECT payload FROM records WHERE owner=? AND kind IN ('income_entries','delivery_shifts') AND deleted_at IS NULL
+            ), locations AS (
+                SELECT json_extract(payload,'$.pickup') AS location FROM shifts
+                UNION
+                SELECT json_extract(item.value,'$.pickup') FROM shifts, json_each(shifts.payload,'$.pickup_rows') item
+            )
+            SELECT location FROM locations WHERE location <> '' ORDER BY location COLLATE NOCASE LIMIT 100",[$owner]);
+        echo '<div class="wide stack" data-delivery-pickups><div class="stack" data-pickup-rows>';
+        foreach (($payload['pickup_rows'] ?? []) ?: [$payload] as $row) {
+            echo $pickupRow($row);
+        }
+        echo '</div><datalist id="delivery-pickup-options">';
+        foreach ($choices as $choice) {
+            echo '<option value="'.self::h($choice['location']).'"></option>';
+        }
+        echo '</datalist><template>'.$pickupRow([]).'</template>'.
+            '<div class="actions"><button type="button" data-add-pickup>+ '.self::th('delivery_add_pickup').'</button></div></div>';
     }
 
     private static function suggestion(Store $store,string $owner,string $field,string $label,string $value): string

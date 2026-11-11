@@ -214,6 +214,32 @@ function bindStarRating(field) {
 
 function bindEditor(form) {
     form.querySelectorAll('[data-star-rating]').forEach(bindStarRating);
+    const pickups = form.querySelector('[data-delivery-pickups]');
+    if (pickups) {
+        const rows = pickups.querySelector('[data-pickup-rows]');
+        const template = pickups.querySelector('template');
+        const add = pickups.querySelector('[data-add-pickup]');
+        const refresh = () => {
+            add.disabled = rows.children.length >= 100;
+            for (const button of rows.querySelectorAll('[data-remove-pickup]')) {
+                button.hidden = rows.children.length === 1;
+            }
+        };
+        add.addEventListener('click', () => {
+            rows.append(template.content.cloneNode(true));
+            rows.lastElementChild.querySelector('input').focus();
+            refresh();
+        });
+        rows.addEventListener('click', (event) => {
+            const remove = event.target.closest('[data-remove-pickup]');
+            if (!remove || rows.children.length === 1) return;
+            remove.closest('[data-pickup-row]').remove();
+            refresh();
+            add.focus();
+            rows.dispatchEvent(new Event('input', { bubbles: true }));
+        });
+        refresh();
+    }
     const { shift_start: start, shift_end: end, dash_minutes: dash } = form.elements;
     if (dash) {
         const updateDashTime = () => {

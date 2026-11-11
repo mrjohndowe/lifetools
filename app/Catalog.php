@@ -369,6 +369,36 @@ final class Catalog
         } else {
             $p['_starts'] = $p['time'] ?? $p['date'] ?? $p['due'] ?? '';
         }
+        if (in_array($kind,['income_entries','delivery_shifts'],true) && isset($input['pickup_locations'])) {
+            $locations = $input['pickup_locations'];
+            $payments = $input['pickup_pay'] ?? null;
+            $tips = $input['pickup_tips'] ?? null;
+            if (!is_array($locations) || !is_array($payments) || !is_array($tips) || count($locations) > 100 ||
+                array_keys($locations) !== array_keys($payments) || array_keys($locations) !== array_keys($tips)) {
+                throw new Problem(ltText('delivery_invalid_pickups'));
+            }
+            $currency = ($old ? (Store::payload($old)['doordash_pay']['currency'] ?? null) : null) ?? $prefs['currency'];
+            $payTotal = $tipTotal = self::money('0',$currency);
+            $p['pickup_rows'] = [];
+            foreach ($locations as $index=>$location) {
+                $location = self::text($location,500);
+                $pay = self::text($payments[$index],500);
+                $tip = self::text($tips[$index],500);
+                if ($location === '' && $pay === '' && $tip === '') {
+                    continue;
+                }
+                $pay = self::money($pay === '' ? '0' : $pay,$currency);
+                $tip = self::money($tip === '' ? '0' : $tip,$currency);
+                $p['pickup_rows'][] = ['pickup'=>$location,'doordash_pay'=>$pay,'customer_tips'=>$tip];
+                $payTotal['minor'] += $pay['minor'];
+                $tipTotal['minor'] += $tip['minor'];
+            }
+            if ($p['pickup_rows']) {
+                $p['pickup'] = $p['pickup_rows'][0]['pickup'];
+                $p['doordash_pay'] = $payTotal;
+                $p['customer_tips'] = $tipTotal;
+            }
+        }
         $deliveryFields = ['shift_start','shift_end','active_minutes','offers','deliveries','pickup','doordash_pay','customer_tips'];
         $hasDeliveryDetails = $kind === 'income_entries' && array_filter(
             array_intersect_key($p,array_flip($deliveryFields)),static fn($value)=>$value !== ''

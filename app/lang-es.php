@@ -645,6 +645,8 @@ return [
         'within_30_days' => 'Dentro de 30 días',
         'work_order' => 'Orden de trabajo',
         'work_orders' => 'Órdenes de trabajo',
+        'work_order_deliveries' => 'Entregas de órdenes de trabajo',
+        'open_delivery_income' => 'Abrir ingresos de reparto',
         'work_shifts' => 'Turnos de trabajo',
         'workspace' => 'ESPACIO DE TRABAJO',
         'workspace_2' => 'Espacio de trabajo',

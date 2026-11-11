@@ -596,7 +596,8 @@ final class Views
             $trash ? ltText('trash_module',['module'=>$module]) : $module,
             $timeline ? ltText('a_chronological_record_of_your_plans') : ltText('records_in_your_private_workspace'),
             self::button($trash ? ltText('back_to_records') : ltText('trash'),['view'=>'module','kind'=>$kind]+($trash ? [] : ['trash'=>'1'])).
-            (!$trash ? self::button(ltText('add_record'),['view'=>'record','kind'=>$kind],true) : ''));
+            (!$trash ? self::button(ltText('add_record'),['view'=>'record','kind'=>$kind],true) : '').
+            ($kind === 'work_order_deliveries' ? self::button(ltText('open_delivery_income'),['view'=>'module','kind'=>'income_entries']) : ''));
         self::tabs($group,$kind);
         if (in_array($kind,['business_inventory','income_entries','work_orders'],true)) {
             self::businessSummary($store,$owner,$prefs);
@@ -702,7 +703,13 @@ final class Views
         $p = $row ? Store::payload($row) : [];
         self::heading(Catalog::label($kind),$row['title'] ?? ltText('new_record'),
             $row ? ltText('updated_date',['date'=>self::dateLabel($row['updated_at'],$prefs)]) : ltText('add_an_entry_to_your_workspace'),
-            self::button(ltText('back_to_records'),['view'=>'module','kind'=>$kind === 'delivery_shifts' ? 'income_entries' : $kind]));
+            self::button(ltText('back_to_records'),['view'=>'module','kind'=>$kind === 'delivery_shifts' ? 'income_entries' : $kind]).
+            ($kind === 'work_order_deliveries' ? self::button(ltText('open_delivery_income'),['view'=>'module','kind'=>'income_entries']) : ''));
+        if ($kind === 'work_order_deliveries' && $id === '') {
+            self::deliverySummary($store,$owner,$prefs);
+            self::editor($store,$owner,'delivery_shifts',$prefs,inlineDelivery:true);
+            echo '<h2>'.self::th('work_order_deliveries').'</h2>';
+        }
         if ($row && $row['deleted_at'] !== null) {
             echo '<section class="panel widget"><p>'.self::th('this_record_is_in_the_trash').'</p>'.
                 self::actionForm('restore_record',ltText('restore_record'),$row).'</section>';

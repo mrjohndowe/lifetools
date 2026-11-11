@@ -23,7 +23,7 @@ final class Catalog
         'lists'=>'lists','list_items'=>'list_items','inventory_items'=>'household_inventory','documents'=>'documents',
         'music_tracks'=>'tracks','playlists'=>'playlists','playlist_items'=>'playlist_tracks','business_inventory'=>'business_inventory',
         'income_entries'=>'income','delivery_shifts'=>'delivery_rideshare','appointments'=>'appointments','work_orders'=>'work_orders','work_order_items'=>'order_items',
-        'work_order_deliveries'=>'deliveries','meal_plans'=>'meal_plans','recipes'=>'recipes','work_shifts'=>'work_shifts',
+        'work_order_deliveries'=>'work_order_deliveries','meal_plans'=>'meal_plans','recipes'=>'recipes','work_shifts'=>'work_shifts',
         'daily_logs'=>'daily_log','journal_entries'=>'private_journal','intimacy_events'=>'intimacy_journal',
         'incidents'=>'incidents','notes'=>'notes','attachments'=>'files_photos','websites'=>'websites',
     ];

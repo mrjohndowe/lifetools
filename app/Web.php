@@ -133,6 +133,9 @@ final class Web
                 if ($api) {
                     self::json(['id'=>$row['id'],'revision'=>$row['revision'],'saved'=>$row['updated_at']]);
                 }
+                if ($kind === 'delivery_shifts' && ($_POST['return_to_income'] ?? '') === '1') {
+                    self::flash(ltText('saved'), ['view'=>'module','kind'=>'income_entries']);
+                }
                 self::flash(ltText('saved'), ['view'=>'record','kind'=>$kind,'id'=>$row['id']]);
             }
             if (in_array($action,['delete','restore_record','duplicate','schedule'],true)) {

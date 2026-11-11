@@ -440,7 +440,11 @@ final class Views
         }
         echo '<nav class="tabs module-tabs" aria-label="'.self::th('modules').'">';
         foreach (Catalog::MODULES[$group] as $module) {
-            echo '<a'.($module===$kind ? ' class="selected" aria-current="page"' : '').' href="'.
+            if ($module === 'delivery_shifts') {
+                continue;
+            }
+            $selected = $module === ($kind === 'delivery_shifts' ? 'income_entries' : $kind);
+            echo '<a'.($selected ? ' class="selected" aria-current="page"' : '').' href="'.
                 self::href(['view'=>'module','kind'=>$module]).'">'.self::h(Catalog::label($module)).'</a>';
         }
         if ($group === 'Vault') {
@@ -512,7 +516,8 @@ final class Views
         $linked = Catalog::text($filter['linked'] ?? '',36);
         $rating = (int)($filter['rating'] ?? 0);
         $named = ($filter['sort'] ?? '') === 'name';
-        $where = 'r.owner=? AND r.kind=? AND r.deleted_at IS '.($trash ? 'NOT NULL' : 'NULL');
+        $kindFilter = $kind === 'income_entries' ? "r.kind IN (?,'delivery_shifts')" : 'r.kind=?';
+        $where = 'r.owner=? AND '.$kindFilter.' AND r.deleted_at IS '.($trash ? 'NOT NULL' : 'NULL');
         $params = [$owner,$kind];
         if ($q !== '' && !$private) {
             $where .= ' AND instr(r.search,?)>0';
@@ -596,8 +601,9 @@ final class Views
         if (in_array($kind,['business_inventory','income_entries','work_orders'],true)) {
             self::businessSummary($store,$owner,$prefs);
         }
-        if ($kind === 'delivery_shifts' && !$trash) {
+        if ($kind === 'income_entries' && !$trash) {
             self::deliverySummary($store,$owner,$prefs);
+            self::editor($store,$owner,'delivery_shifts',$prefs,inlineDelivery:true);
         }
         echo '<form class="panel filters" method="'.($private ? 'post' : 'get').'" action="'.self::href($private ? $route : []).'">'.
             ($private ? self::csrf() : self::hidden('view','module').self::hidden('kind',$kind).($trash ? self::hidden('trash','1') : '')).
@@ -658,7 +664,7 @@ final class Views
                 $label = ltOption($label);
             }
             echo '<article class="panel record-row"><div class="record-icon">'.self::icon($group).'</div><div class="row-content"><a class="row-title" href="'.
-                self::href(['view'=>'record','kind'=>$kind,'id'=>$row['id']]+($trash ? ['trash'=>'1'] : [])).'">'.self::highlight($row['title'],$q).
+                self::href(['view'=>'record','kind'=>$row['kind'],'id'=>$row['id']]+($trash ? ['trash'=>'1'] : [])).'">'.self::highlight($row['title'],$q).
                 '</a><small>'.self::h(implode(' · ',array_filter([self::dateLabel($row['starts'],$prefs),$label,$p['tags'] ?? '']))).'</small></div>';
             if ($timeline) {
                 echo '<span class="pill">'.(substr($local,0,10)<$today ? self::th('past') : self::th('upcoming')).' · '.self::h(ltOption($p['status'] ?? '')).'</span>';
@@ -696,7 +702,7 @@ final class Views
         $p = $row ? Store::payload($row) : [];
         self::heading(Catalog::label($kind),$row['title'] ?? ltText('new_record'),
             $row ? ltText('updated_date',['date'=>self::dateLabel($row['updated_at'],$prefs)]) : ltText('add_an_entry_to_your_workspace'),
-            self::button(ltText('back_to_records'),['view'=>'module','kind'=>$kind]));
+            self::button(ltText('back_to_records'),['view'=>'module','kind'=>$kind === 'delivery_shifts' ? 'income_entries' : $kind]));
         if ($row && $row['deleted_at'] !== null) {
             echo '<section class="panel widget"><p>'.self::th('this_record_is_in_the_trash').'</p>'.
                 self::actionForm('restore_record',ltText('restore_record'),$row).'</section>';
@@ -760,7 +766,7 @@ final class Views
             self::hidden('revision',$row['revision']).'<button'.($confirm ? ' class="danger-button"' : '').'>'.self::h($label).'</button></form>';
     }
 
-    public static function editor(Store $store,string $owner,string $kind,array $prefs,?array $row = null,bool $quick = false): void
+    public static function editor(Store $store,string $owner,string $kind,array $prefs,?array $row = null,bool $quick = false,bool $inlineDelivery = false): void
     {
         $p = $row ? Store::payload($row) : [];
         $fields = Catalog::fields($kind,$prefs);
@@ -780,17 +786,25 @@ final class Views
         echo '<form class="'.($quick ? '' : 'panel ').'editor" method="post" action="index.php" enctype="multipart/form-data"'.
             ($quick || $auto ? ' data-editor="'.($quick ? 'quick' : 'auto').'"' : '').'>'.
             self::csrf().self::hidden('action','save').self::hidden('kind',$kind).
-            self::hidden('id',$row['id'] ?? '').self::hidden('revision',$row['revision'] ?? '').'<div class="form-grid">';
+            self::hidden('id',$row['id'] ?? '').self::hidden('revision',$row['revision'] ?? '').
+            ($inlineDelivery ? self::hidden('return_to_income','1') : '').'<div class="form-grid">';
+        if ($inlineDelivery) {
+            echo '<h2 class="wide">'.self::th('delivery_shift').'</h2>';
+        }
         if (!in_array($kind,['intimacy_events','delivery_shifts'],true)) {
             $label = match ($kind) {
                 'contacts'=>ltText('display_name_or_enter_first_and'),'attachments'=>ltText('file_title'),
                 'music_tracks'=>ltText('song_title'),'personal_profile'=>ltText('preferred_name'),default=>ltText('title'),
             };
-            echo self::input('title',$label,$row['title'] ?? '','text','maxlength="180" '.($kind !== 'contacts' ? 'required' : ''));
+            echo self::input('title',$label,$row['title'] ?? '','text','maxlength="180" '.
+                (!in_array($kind,['contacts','income_entries'],true) ? 'required' : ''));
         }
         foreach ($fields as $field=>[$type,$label]) {
             $options = $fields[$field][2] ?? [];
             $value = $p[$field] ?? '';
+            if ($kind === 'income_entries' && $field === 'shift_start') {
+                echo '<h2 class="wide">'.self::th('delivery_rideshare').'</h2>';
+            }
             if ($type === 'zone' && $value === '') {
                 $value = $prefs['zone'];
             }
@@ -840,7 +854,7 @@ final class Views
                 'zone'=>self::timeZones($value),
                 'date','month','email','url'=>self::input($field,$label,$value,$type),
                 'datetime'=>self::input($field,$label,$value,'datetime-local'),
-                'shift-time'=>self::input($field,$label,$value,'datetime-local','required'),
+                'shift-time'=>self::input($field,$label,$value,'datetime-local',$kind === 'delivery_shifts' ? 'required' : ''),
                 'computed'=>self::input($field,$label,$value,'text','readonly'),
                 'suggestion'=>self::suggestion($store,$owner,$field,$label,$value),
                 'clock'=>self::input($field,$label,$value,'time'),
@@ -870,7 +884,8 @@ final class Views
     private static function deliverySummary(Store $store,string $owner,array $prefs): void
     {
         $monday = self::today($prefs)->modify('monday this week');
-        $rows = $store->run("SELECT payload FROM records WHERE owner=? AND kind='delivery_shifts'
+        $rows = $store->run("SELECT payload FROM records WHERE owner=? AND kind IN ('income_entries','delivery_shifts')
+            AND json_type(payload,'$.doordash_pay') = 'object'
             AND deleted_at IS NULL AND starts >= ? AND starts < ?",
             [$owner,$monday->format('Y-m-d'),$monday->modify('+7 days')->format('Y-m-d')]);
         $totals = [];

@@ -77,6 +77,14 @@ final class Catalog
             'card'=>['secret',ltText('card_number')],'expiry'=>['month',ltText('card_expiry')],'card_type'=>['text',ltText('card_network_or_type')],
             'username'=>['secret',ltText('username')],'contact'=>$contact,'notes'=>$notes,
         ];
+        $deliveryFields = [
+            'shift_start'=>['shift-time',ltText('start_time')],'shift_end'=>['shift-time',ltText('end_time')],
+            'active_minutes'=>['number',ltText('delivery_active_minutes')],
+            'dash_minutes'=>['computed',ltText('delivery_dash_minutes')],
+            'offers'=>['number',ltText('delivery_offers')],'deliveries'=>['number',ltText('delivery_count')],
+            'pickup'=>['suggestion',ltText('delivery_pickup')],
+            'doordash_pay'=>['money',ltText('delivery_pay')],'customer_tips'=>['money',ltText('delivery_tips')],
+        ];
         return match ($kind) {
             'events'=>[
                 'description'=>['area',ltText('description')], 'category'=>['select',ltText('category'),['rental','vehicle','medical','work','legal','personal','business']],
@@ -141,16 +149,8 @@ final class Catalog
             'business_inventory'=>['sku'=>['text',ltText('sku')],'quantity'=>['number',ltText('quantity')],'cost'=>['money',ltText('cost')],'price'=>['money',ltText('price')],
                 'location'=>['text',ltText('stock_location')],'threshold'=>['number',ltText('low_stock_threshold')]],
             'income_entries'=>['date'=>['date',ltText('date')],'contact'=>$contact,'client'=>['suggestion',ltText('client')],'description'=>['area',ltText('description')],
-                'amount'=>['money',ltText('amount')],'method'=>['text',ltText('payment_method')],'status'=>['select',ltText('status'),['pending','paid','refunded']]],
-            'delivery_shifts'=>[
-                'client'=>['suggestion',ltText('client')],
-                'shift_start'=>['shift-time',ltText('start_time')],'shift_end'=>['shift-time',ltText('end_time')],
-                'active_minutes'=>['number',ltText('delivery_active_minutes')],
-                'dash_minutes'=>['computed',ltText('delivery_dash_minutes')],
-                'offers'=>['number',ltText('delivery_offers')],'deliveries'=>['number',ltText('delivery_count')],
-                'pickup'=>['suggestion',ltText('delivery_pickup')],
-                'doordash_pay'=>['money',ltText('delivery_pay')],'customer_tips'=>['money',ltText('delivery_tips')],
-            ],
+                'amount'=>['money',ltText('amount')],'method'=>['text',ltText('payment_method')],'status'=>['select',ltText('status'),['pending','paid','refunded']]] + $deliveryFields,
+            'delivery_shifts'=>['client'=>['suggestion',ltText('client')]] + $deliveryFields,
             'appointments'=>['time'=>['datetime',ltText('starts')],'contact'=>$contact,'client'=>['text',ltText('client')],'service'=>['text',ltText('service')],
                 'status'=>['select',ltText('status'),['planned','done','cancelled']]],
             'work_orders'=>['date'=>['date',ltText('order_date')],'contact'=>$contact,'client'=>['text',ltText('client')],
@@ -270,7 +270,7 @@ final class Catalog
         if ($kind === 'intimacy_events') {
             $title = ltText('private_event');
         }
-        if ($kind === 'delivery_shifts') {
+        if ($kind === 'delivery_shifts' || ($kind === 'income_entries' && $title === '' && ($input['shift_start'] ?? '') !== '')) {
             $title = self::text($input['client'] ?? '',180) ?: ltText('delivery_shift');
         }
         if ($title === '') {
@@ -369,7 +369,11 @@ final class Catalog
         } else {
             $p['_starts'] = $p['time'] ?? $p['date'] ?? $p['due'] ?? '';
         }
-        if ($kind === 'delivery_shifts') {
+        $deliveryFields = ['shift_start','shift_end','active_minutes','offers','deliveries','pickup','doordash_pay','customer_tips'];
+        $hasDeliveryDetails = $kind === 'income_entries' && array_filter(
+            array_intersect_key($p,array_flip($deliveryFields)),static fn($value)=>$value !== ''
+        );
+        if ($kind === 'delivery_shifts' || $hasDeliveryDetails) {
             $clock = new DateTimeZone('UTC');
             $start = Planner::local($p['shift_start'],$clock);
             $end = Planner::local($p['shift_end'],$clock);

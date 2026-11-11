@@ -16,7 +16,7 @@ return [
         'delivery_week' => 'Información semanal',
         'delivery_week_pay' => 'Pago total de DoorDash',
         'delivery_total' => 'Ingresos totales',
-        'delivery_average' => 'Ingreso promedio por entrega',
+        'delivery_average' => 'Ingreso promedio de esta semana (por entrega)',
         'delivery_invalid_duration' => 'La hora de fin debe ser igual o posterior a la de inicio y el tiempo activo no puede superar la duración del turno.',
         '32_byte_base64_key' => 'Clave base64 de 32 bytes',
         'a_chronological_record_of_your_plans' => 'Un registro cronológico de tus planes y logros.',

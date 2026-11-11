@@ -1,0 +1,53 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Life Tools Demo</title>
+  <link rel="stylesheet" href="demo.css">
+  <script src="demo.js" defer></script>
+</head>
+<body>
+  <header>
+    <strong>Life Tools</strong>
+    <a href="https://github.com/mrjohndowe/lifetools">Source code</a>
+  </header>
+  <main>
+    <h1>Try Life Tools</h1>
+    <p>Explore a fictional workspace. Changes last until you reload this page.</p>
+    <nav aria-label="Demo sections">
+      <button type="button" data-view="timeline" aria-pressed="true">Timeline</button>
+      <button type="button" data-view="journal" aria-pressed="false">Journal</button>
+      <button type="button" data-view="vault" aria-pressed="false">Vault</button>
+    </nav>
+    <section id="timeline">
+      <h2>Timeline</h2>
+      <ul>
+        <li><time datetime="2026-11-12">Nov 12</time> Pick up library books</li>
+        <li><time datetime="2026-11-15">Nov 15</time> Dinner with Avery</li>
+      </ul>
+      <form>
+        <label>Event <input name="title" required maxlength="100"></label>
+        <label>Date <input name="date" type="date" required></label>
+        <button>Add event</button>
+      </form>
+    </section>
+    <section id="journal" hidden>
+      <h2>Journal</h2>
+      <p>Took a walk after lunch and made plans for the weekend.</p>
+      <form>
+        <label>Demo entry <textarea name="entry" required maxlength="500"></textarea></label>
+        <button>Add entry</button>
+      </form>
+      <ul></ul>
+    </section>
+    <section id="vault" hidden>
+      <h2>Vault</h2>
+      <p>Example account · fictional credentials</p>
+      <button type="button" aria-expanded="false" aria-controls="sample">Reveal sample</button>
+      <code id="sample" hidden>demo-only-value</code>
+    </section>
+    <p id="status" role="status"></p>
+  </main>
+</body>
+</html>

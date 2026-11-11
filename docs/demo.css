@@ -1,0 +1,15 @@
+:root { color-scheme: dark; font: 16px/1.6 system-ui, sans-serif; background: #0d1728; color: #f3f6ff; }
+body { margin: 0; }
+header { display: flex; justify-content: space-between; padding: 1rem max(1rem, calc((100% - 48rem)/2)); border-bottom: 1px solid #344a6b; }
+a { color: #ff8aa5; }
+main { max-width: 48rem; margin: 2rem auto; padding: 0 1rem; }
+h1 { font-size: clamp(2rem, 7vw, 3.5rem); margin-bottom: 0; }
+nav, form { display: flex; flex-wrap: wrap; gap: .75rem; margin: 1rem 0; align-items: end; }
+section { background: #142238; border: 1px solid #344a6b; border-radius: 1rem; padding: 1rem; overflow-wrap: anywhere; }
+section h2 { margin-top: 0; }
+label { display: grid; gap: .3rem; }
+button, input, textarea { font: inherit; color: inherit; background: #1c2d47; border: 1px solid #748eb4; border-radius: .45rem; padding: .45rem .7rem; }
+button { cursor: pointer; }
+button[aria-pressed="true"] { background: #ff8aa5; color: #2e0b18; border-color: #ff8aa5; }
+time { color: #b7c8e0; margin-right: .5rem; }
+code { margin-inline-start: .5rem; }

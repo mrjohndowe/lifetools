@@ -10,7 +10,7 @@ final class Catalog
         'Vault'=>['personal_profile','phone_history','email_history','accounts','bank_accounts','cards'],
         'Organizers'=>['vehicles','vehicle_documents','receipts','chores','lists','list_items','inventory_items','documents'],
         'Music'=>['music_tracks','playlists','playlist_items'],
-        'Business'=>['business_inventory','income_entries','appointments','work_orders','work_order_items','work_order_deliveries'],
+        'Business'=>['business_inventory','income_entries','delivery_shifts','appointments','work_orders','work_order_items','work_order_deliveries'],
         'Life admin'=>['meal_plans','recipes','work_shifts','daily_logs','journal_entries','intimacy_events','incidents','notes'],
         'Files'=>['attachments'],
         'Websites'=>['websites'],
@@ -22,7 +22,7 @@ final class Catalog
         'vehicles'=>'vehicles','vehicle_documents'=>'vehicle_records','receipts'=>'receipts','chores'=>'chores_cleaning',
         'lists'=>'lists','list_items'=>'list_items','inventory_items'=>'household_inventory','documents'=>'documents',
         'music_tracks'=>'tracks','playlists'=>'playlists','playlist_items'=>'playlist_tracks','business_inventory'=>'business_inventory',
-        'income_entries'=>'income','appointments'=>'appointments','work_orders'=>'work_orders','work_order_items'=>'order_items',
+        'income_entries'=>'income','delivery_shifts'=>'delivery_rideshare','appointments'=>'appointments','work_orders'=>'work_orders','work_order_items'=>'order_items',
         'work_order_deliveries'=>'deliveries','meal_plans'=>'meal_plans','recipes'=>'recipes','work_shifts'=>'work_shifts',
         'daily_logs'=>'daily_log','journal_entries'=>'private_journal','intimacy_events'=>'intimacy_journal',
         'incidents'=>'incidents','notes'=>'notes','attachments'=>'files_photos','websites'=>'websites',
@@ -140,8 +140,17 @@ final class Catalog
             'playlist_items'=>['playlist'=>['link',ltText('playlist'),['playlists']],'track'=>['link',ltText('track'),['music_tracks']],'position'=>['number',ltText('order')]],
             'business_inventory'=>['sku'=>['text',ltText('sku')],'quantity'=>['number',ltText('quantity')],'cost'=>['money',ltText('cost')],'price'=>['money',ltText('price')],
                 'location'=>['text',ltText('stock_location')],'threshold'=>['number',ltText('low_stock_threshold')]],
-            'income_entries'=>['date'=>['date',ltText('date')],'contact'=>$contact,'client'=>['text',ltText('client')],'description'=>['area',ltText('description')],
+            'income_entries'=>['date'=>['date',ltText('date')],'contact'=>$contact,'client'=>['suggestion',ltText('client')],'description'=>['area',ltText('description')],
                 'amount'=>['money',ltText('amount')],'method'=>['text',ltText('payment_method')],'status'=>['select',ltText('status'),['pending','paid','refunded']]],
+            'delivery_shifts'=>[
+                'client'=>['suggestion',ltText('client')],
+                'shift_start'=>['shift-time',ltText('start_time')],'shift_end'=>['shift-time',ltText('end_time')],
+                'active_minutes'=>['number',ltText('delivery_active_minutes')],
+                'dash_minutes'=>['computed',ltText('delivery_dash_minutes')],
+                'offers'=>['number',ltText('delivery_offers')],'deliveries'=>['number',ltText('delivery_count')],
+                'pickup'=>['suggestion',ltText('delivery_pickup')],
+                'doordash_pay'=>['money',ltText('delivery_pay')],'customer_tips'=>['money',ltText('delivery_tips')],
+            ],
             'appointments'=>['time'=>['datetime',ltText('starts')],'contact'=>$contact,'client'=>['text',ltText('client')],'service'=>['text',ltText('service')],
                 'status'=>['select',ltText('status'),['planned','done','cancelled']]],
             'work_orders'=>['date'=>['date',ltText('order_date')],'contact'=>$contact,'client'=>['text',ltText('client')],
@@ -261,6 +270,9 @@ final class Catalog
         if ($kind === 'intimacy_events') {
             $title = ltText('private_event');
         }
+        if ($kind === 'delivery_shifts') {
+            $title = self::text($input['client'] ?? '',180) ?: ltText('delivery_shift');
+        }
         if ($title === '') {
             throw new Problem(ltText('enter_a_title_or_display_name'));
         }
@@ -269,7 +281,7 @@ final class Catalog
         $fields = self::fields($kind,$prefs);
         foreach ($fields as $field=>[$type,$label]) {
             $options = $fields[$field][2] ?? [];
-            if ($type === 'upload') {
+            if ($type === 'upload' || $type === 'computed') {
                 continue;
             }
             if ($type === 'link' || $type === 'links') {
@@ -356,6 +368,22 @@ final class Catalog
             $p = Planner::validate($p);
         } else {
             $p['_starts'] = $p['time'] ?? $p['date'] ?? $p['due'] ?? '';
+        }
+        if ($kind === 'delivery_shifts') {
+            $clock = new DateTimeZone('UTC');
+            $start = Planner::local($p['shift_start'],$clock);
+            $end = Planner::local($p['shift_end'],$clock);
+            $p['dash_minutes'] = intdiv($end->getTimestamp() - $start->getTimestamp(),60);
+            if ($p['dash_minutes'] < 0 || (int)$p['active_minutes'] > $p['dash_minutes']) {
+                throw new Problem(ltText('delivery_invalid_duration'));
+            }
+            $p['_starts'] = $start->format('Y-m-d');
+            $currency = $p['doordash_pay']['currency'] ?? $p['customer_tips']['currency'] ?? $prefs['currency'];
+            foreach (['doordash_pay','customer_tips'] as $field) {
+                if ($p[$field] === '') {
+                    $p[$field] = self::money('0',$currency);
+                }
+            }
         }
         if ($kind === 'attachments') {
             if ($file && (int)$file['error'] !== UPLOAD_ERR_NO_FILE) {

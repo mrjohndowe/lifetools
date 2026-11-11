@@ -4,6 +4,20 @@ declare(strict_types=1);
 // Spanish display text. Keep keys and named placeholders aligned with lang.php.
 return [
     'messages' => [
+        'delivery_rideshare' => 'Repartos y viajes compartidos',
+        'delivery_shift' => 'Turno de reparto',
+        'delivery_active_minutes' => 'Tiempo activo (minutos)',
+        'delivery_dash_minutes' => 'Duración del turno (minutos)',
+        'delivery_offers' => 'Ofertas',
+        'delivery_count' => 'Entregas',
+        'delivery_pickup' => 'Lugar de recogida',
+        'delivery_pay' => 'Pago de DoorDash',
+        'delivery_tips' => 'Propinas de clientes',
+        'delivery_week' => 'Información semanal',
+        'delivery_week_pay' => 'Pago total de DoorDash',
+        'delivery_total' => 'Ingresos totales',
+        'delivery_average' => 'Ingreso promedio por entrega',
+        'delivery_invalid_duration' => 'La hora de fin debe ser igual o posterior a la de inicio y el tiempo activo no puede superar la duración del turno.',
         '32_byte_base64_key' => 'Clave base64 de 32 bytes',
         'a_chronological_record_of_your_plans' => 'Un registro cronológico de tus planes y logros.',
         'a_field_exceeds_max_characters_or' => 'Un campo supera los {max} caracteres o contiene texto no válido.',

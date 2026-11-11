@@ -214,6 +214,15 @@ function bindStarRating(field) {
 
 function bindEditor(form) {
     form.querySelectorAll('[data-star-rating]').forEach(bindStarRating);
+    const { shift_start: start, shift_end: end, dash_minutes: dash } = form.elements;
+    if (dash) {
+        const updateDashTime = () => {
+            const minutes = (Date.parse(end.value + 'Z') - Date.parse(start.value + 'Z')) / 60000;
+            dash.value = minutes >= 0 ? String(minutes) : '';
+        };
+        start.addEventListener('input', updateDashTime);
+        end.addEventListener('input', updateDashTime);
+    }
     const allDay = form.elements.all_day;
     if (allDay) {
         allDay.addEventListener('change', () => {

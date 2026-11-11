@@ -58,7 +58,7 @@ final class Views
             '<title>'.self::th('page_title',['title'=>$title]).'</title><link rel="stylesheet" href="assets/style.css?v=star-buttons">'.
             '<script type="application/json" id="lifetools-language">'.
             json_encode($browserLanguage,JSON_THROW_ON_ERROR | JSON_HEX_TAG | JSON_UNESCAPED_UNICODE).
-            '</script><script src="assets/app.js?v=star-buttons" defer></script></head><body>';
+            '</script><script src="assets/app.js?v=delivery-shifts" defer></script></head><body>';
     }
 
     public static function error(string $message): void
@@ -596,6 +596,9 @@ final class Views
         if (in_array($kind,['business_inventory','income_entries','work_orders'],true)) {
             self::businessSummary($store,$owner,$prefs);
         }
+        if ($kind === 'delivery_shifts' && !$trash) {
+            self::deliverySummary($store,$owner,$prefs);
+        }
         echo '<form class="panel filters" method="'.($private ? 'post' : 'get').'" action="'.self::href($private ? $route : []).'">'.
             ($private ? self::csrf() : self::hidden('view','module').self::hidden('kind',$kind).($trash ? self::hidden('trash','1') : '')).
             self::input('q',$private ? ltText('search_private_entries') : ltText('search_this_module'),$q,'search');
@@ -778,7 +781,7 @@ final class Views
             ($quick || $auto ? ' data-editor="'.($quick ? 'quick' : 'auto').'"' : '').'>'.
             self::csrf().self::hidden('action','save').self::hidden('kind',$kind).
             self::hidden('id',$row['id'] ?? '').self::hidden('revision',$row['revision'] ?? '').'<div class="form-grid">';
-        if ($kind !== 'intimacy_events') {
+        if (!in_array($kind,['intimacy_events','delivery_shifts'],true)) {
             $label = match ($kind) {
                 'contacts'=>ltText('display_name_or_enter_first_and'),'attachments'=>ltText('file_title'),
                 'music_tracks'=>ltText('song_title'),'personal_profile'=>ltText('preferred_name'),default=>ltText('title'),
@@ -828,7 +831,7 @@ final class Views
                     ? ltText('use_italic_or_bold') : ''),$value,'maxlength="24000"'),
                 'select','private-choice'=>self::select($field,$label,self::options($options,$defaults[$field][2]),$value),
                 'rating','private-rating'=>self::select($field,$label,array_combine(range(1,10),range(1,10)),$value,
-                    stars:str_starts_with($field,'question_')),
+                    stars:$type === 'private-rating'),
                 'check'=>self::checkbox($field,$label,$field === 'all_day' && !$row ? true : (bool)$value),
                 'money'=>self::input($field,$label.' ('.($value ? $value['currency'] : $prefs['currency']).')',
                     $value ? Catalog::decimal($value) : '','text','inputmode="decimal"'),
@@ -837,6 +840,9 @@ final class Views
                 'zone'=>self::timeZones($value),
                 'date','month','email','url'=>self::input($field,$label,$value,$type),
                 'datetime'=>self::input($field,$label,$value,'datetime-local'),
+                'shift-time'=>self::input($field,$label,$value,'datetime-local','required'),
+                'computed'=>self::input($field,$label,$value,'text','readonly'),
+                'suggestion'=>self::suggestion($store,$owner,$field,$label,$value),
                 'clock'=>self::input($field,$label,$value,'time'),
                 'positive','number'=>self::input($field,$label,$value,'number','min="'.($type==='positive'?1:0).'"'),
                 'upload'=>self::input('upload',$label,'','file','accept="image/png,image/jpeg,image/gif,image/webp,application/pdf" '.(!$row ? 'required' : '')),
@@ -845,6 +851,59 @@ final class Views
         }
         echo '</div><div class="actions editor-actions"><button class="primary" type="submit">'.self::th('save_record').'</button>'.
             '<output aria-live="polite" class="save-status">'.($auto ? self::th('edits_save_automatically') : '').'</output></div></form>';
+    }
+
+    private static function suggestion(Store $store,string $owner,string $field,string $label,string $value): string
+    {
+        $id = 'suggestions-'.$field;
+        $path = '$.'.$field;
+        $choices = $store->run("SELECT DISTINCT json_extract(payload,?) AS choice FROM records
+            WHERE owner=? AND kind IN ('income_entries','delivery_shifts') AND deleted_at IS NULL
+            AND json_extract(payload,?) <> '' ORDER BY choice COLLATE NOCASE LIMIT 100",[$path,$owner,$path]);
+        $output = self::input($field,$label,$value,'text','list="'.self::h($id).'"').'<datalist id="'.self::h($id).'">';
+        foreach ($choices as $choice) {
+            $output .= '<option value="'.self::h($choice['choice']).'"></option>';
+        }
+        return $output.'</datalist>';
+    }
+
+    private static function deliverySummary(Store $store,string $owner,array $prefs): void
+    {
+        $monday = self::today($prefs)->modify('monday this week');
+        $rows = $store->run("SELECT payload FROM records WHERE owner=? AND kind='delivery_shifts'
+            AND deleted_at IS NULL AND starts >= ? AND starts < ?",
+            [$owner,$monday->format('Y-m-d'),$monday->modify('+7 days')->format('Y-m-d')]);
+        $totals = [];
+        foreach ($rows as $row) {
+            $payload = Store::payload($row);
+            $pay = $payload['doordash_pay'];
+            $currency = $pay['currency'];
+            $totals[$currency] ??= ['scale'=>$pay['scale'],'pay'=>0,'tips'=>0,'count'=>0];
+            $totals[$currency]['pay'] += $pay['minor'];
+            $totals[$currency]['tips'] += $payload['customer_tips']['minor'];
+            $totals[$currency]['count'] += (int)$payload['deliveries'];
+        }
+        if (!$totals) {
+            $currency = $prefs['currency'];
+            $totals[$currency] = ['scale'=>Catalog::money('0',$currency)['scale'],'pay'=>0,'tips'=>0,'count'=>0];
+        }
+        $values = ['delivery_week_pay'=>[],'delivery_tips'=>[],'delivery_total'=>[],'delivery_average'=>[]];
+        foreach ($totals as $currency=>$total) {
+            $earned = $total['pay'] + $total['tips'];
+            $amounts = [
+                'delivery_week_pay'=>$total['pay'],'delivery_tips'=>$total['tips'],'delivery_total'=>$earned,
+                'delivery_average'=>$total['count'] ? (int)round($earned / $total['count']) : null,
+            ];
+            foreach ($amounts as $label=>$minor) {
+                $values[$label][] = $minor === null ? '—' : $currency.' '.Catalog::decimal(['minor'=>$minor,'scale'=>$total['scale']]);
+            }
+        }
+        echo '<h2>'.self::th('delivery_week').'</h2><p>'.self::h($monday->format($prefs['format']).' – '.
+            $monday->modify('+6 days')->format($prefs['format'])).'</p><div class="panel business-summary">';
+        foreach ($values as $label=>$amounts) {
+            echo '<div><strong>'.self::th($label).'</strong><span>'.self::h(implode(' · ',$amounts)).'</span></div>';
+        }
+        echo '</div>';
     }
 
     private static function businessSummary(Store $store,string $owner,array $prefs): void

@@ -5,6 +5,20 @@ const LT_DEFAULT_LANGUAGE = 'en';
 const LT_LANGUAGES = ['en'=>'English','es'=>'Español'];
 
 const LT_MESSAGES = [
+    'delivery_rideshare' => 'Deliveries/Ride Share',
+    'delivery_shift' => 'Delivery shift',
+    'delivery_active_minutes' => 'Active time (minutes)',
+    'delivery_dash_minutes' => 'Dash time (minutes)',
+    'delivery_offers' => 'Offers',
+    'delivery_count' => 'Deliveries',
+    'delivery_pickup' => 'Pickup location',
+    'delivery_pay' => 'DoorDash pay',
+    'delivery_tips' => 'Customer tips',
+    'delivery_week' => 'Weekly information',
+    'delivery_week_pay' => 'Total DoorDash pay',
+    'delivery_total' => 'Total earned',
+    'delivery_average' => 'Average earned per delivery',
+    'delivery_invalid_duration' => 'End time must be at or after start time, and active time cannot exceed dash time.',
     '32_byte_base64_key' => '32-byte base64 key',
     'a_chronological_record_of_your_plans' => 'A Chronological Record Of Your Plans and Milestones.',
     'a_field_exceeds_max_characters_or' => 'A Field Exceeds {max} Characters or Contains Invalid Text.',

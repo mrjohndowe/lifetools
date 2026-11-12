@@ -448,8 +448,8 @@ final class Catalog
 
     private static function durationMinutes(string $value,string $label): int
     {
-        if (preg_match('/^(\d{1,8}):([0-5]\d)$/D',$value,$parts)) {
-            $value = (string)((int)$parts[1]*60 + (int)$parts[2]);
+        if (preg_match('/^(\d{1,8})(?::([0-5]\d)| hrs ([0-5]?\d) mins)$/D',$value,$parts)) {
+            $value = (string)((int)$parts[1]*60 + (int)($parts[3] ?? $parts[2]));
         } elseif (!ctype_digit($value)) {
             throw new Problem(ltText('delivery_duration_format'));
         }

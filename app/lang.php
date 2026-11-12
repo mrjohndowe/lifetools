@@ -7,9 +7,10 @@ const LT_LANGUAGES = ['en'=>'English','es'=>'Español'];
 const LT_MESSAGES = [
     'delivery_rideshare' => 'Deliveries/Ride Share',
     'delivery_shift' => 'Delivery shift',
-    'delivery_active_minutes' => 'Active time (hours:minutes)',
-    'delivery_dash_minutes' => 'Dash time (hours:minutes)',
-    'delivery_duration_format' => 'Enter active time as hours and minutes, such as 2:15.',
+    'delivery_active_minutes' => 'Active time',
+    'delivery_dash_minutes' => 'Dash time',
+    'delivery_duration_format' => 'Enter active time as hours and minutes, such as 1 hrs 34 mins.',
+    'delivery_duration_label' => '{hours} hrs {minutes} mins',
     'delivery_offers' => 'Offers',
     'delivery_count' => 'Deliveries',
     'delivery_pickup' => 'Pickup location',
@@ -830,6 +831,7 @@ const LT_OPTIONS = [
 
 // Messages used by assets/app.js.
 const LT_BROWSER_KEYS = [
+    'delivery_duration_label',
     'administrator',
     'appearance',
     'character_sets_l_lowercase_u_uppercase',

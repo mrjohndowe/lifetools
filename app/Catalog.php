@@ -79,7 +79,7 @@ final class Catalog
         ];
         $deliveryFields = [
             'shift_start'=>['shift-time',ltText('start_time')],'shift_end'=>['shift-time',ltText('end_time')],
-            'active_minutes'=>['number',ltText('delivery_active_minutes')],
+            'active_minutes'=>['duration',ltText('delivery_active_minutes')],
             'dash_minutes'=>['computed',ltText('delivery_dash_minutes')],
             'offers'=>['number',ltText('delivery_offers')],'deliveries'=>['number',ltText('delivery_count')],
             'pickup'=>['suggestion',ltText('delivery_pickup')],
@@ -348,6 +348,7 @@ final class Catalog
                 'month'=>preg_match('/^\d{4}-(0[1-9]|1[0-2])$/D',$value) ? $value : throw new Problem(ltText('label_enter_a_valid_month',['label'=>$label])),
                 'clock'=>preg_match('/^([01]\d|2[0-3]):[0-5]\d$/D',$value) ? $value : throw new Problem(ltText('label_enter_a_valid_time',['label'=>$label])),
                 'number'=>self::integer($value,0,1000000000,$label),
+                'duration'=>self::durationMinutes($value,$label),
                 'positive'=>self::integer($value,1,$field === 'interval' ? 365 : 1000000,$label),
                 'rating'=>self::integer($value,1,10,$label),
                 'money'=>self::money($value,$old ? (Store::payload($old)[$field]['currency'] ?? $prefs['currency']) : $prefs['currency']),
@@ -411,7 +412,7 @@ final class Catalog
             if ($p['dash_minutes'] < 0 || (int)$p['active_minutes'] > $p['dash_minutes']) {
                 throw new Problem(ltText('delivery_invalid_duration'));
             }
-            $p['_starts'] = $start->format('Y-m-d');
+            $p['_starts'] = $end->format('Y-m-d');
             $currency = $p['doordash_pay']['currency'] ?? $p['customer_tips']['currency'] ?? $prefs['currency'];
             foreach (['doordash_pay','customer_tips'] as $field) {
                 if ($p[$field] === '') {
@@ -443,6 +444,16 @@ final class Catalog
             throw new Problem(ltText('a_field_exceeds_max_characters_or',['max'=>$max]));
         }
         return $value;
+    }
+
+    private static function durationMinutes(string $value,string $label): int
+    {
+        if (preg_match('/^(\d{1,8}):([0-5]\d)$/D',$value,$parts)) {
+            $value = (string)((int)$parts[1]*60 + (int)$parts[2]);
+        } elseif (!ctype_digit($value)) {
+            throw new Problem(ltText('delivery_duration_format'));
+        }
+        return self::integer($value,0,1000000000,$label);
     }
 
     private static function integer(string $input, int $min, int $max, string $label): int

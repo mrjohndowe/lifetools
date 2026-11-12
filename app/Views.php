@@ -58,7 +58,7 @@ final class Views
             '<title>'.self::th('page_title',['title'=>$title]).'</title><link rel="stylesheet" href="assets/style.css?v=star-buttons">'.
             '<script type="application/json" id="lifetools-language">'.
             json_encode($browserLanguage,JSON_THROW_ON_ERROR | JSON_HEX_TAG | JSON_UNESCAPED_UNICODE).
-            '</script><script src="assets/app.js?v=delivery-pickups" defer></script></head><body>';
+            '</script><script src="assets/app.js?v=delivery-duration" defer></script></head><body>';
     }
 
     public static function error(string $message): void
@@ -666,7 +666,8 @@ final class Views
             }
             echo '<article class="panel record-row"><div class="record-icon">'.self::icon($group).'</div><div class="row-content"><a class="row-title" href="'.
                 self::href(['view'=>'record','kind'=>$row['kind'],'id'=>$row['id']]+($trash ? ['trash'=>'1'] : [])).'">'.self::highlight($row['title'],$q).
-                '</a><small>'.self::h(implode(' · ',array_filter([self::dateLabel($row['starts'],$prefs),$label,$p['tags'] ?? '']))).'</small></div>';
+                '</a><small>'.self::h(implode(' · ',array_filter([self::dateLabel(
+                    !empty($p['shift_end']) ? substr($p['shift_end'],0,10) : $row['starts'],$prefs),$label,$p['tags'] ?? '']))).'</small></div>';
             if ($timeline) {
                 echo '<span class="pill">'.(substr($local,0,10)<$today ? self::th('past') : self::th('upcoming')).' · '.self::h(ltOption($p['status'] ?? '')).'</span>';
             }
@@ -868,7 +869,8 @@ final class Views
                 'date','month','email','url'=>self::input($field,$label,$value,$type),
                 'datetime'=>self::input($field,$label,$value,'datetime-local'),
                 'shift-time'=>self::input($field,$label,$value,'datetime-local',$kind === 'delivery_shifts' ? 'required' : ''),
-                'computed'=>self::input($field,$label,$value,'text','readonly'),
+                'duration'=>self::input($field,$label,self::durationLabel($value),'text','placeholder="H:MM" pattern="[0-9]+(:[0-5][0-9])?"'),
+                'computed'=>self::input($field,$label,self::durationLabel($value),'text','readonly'),
                 'suggestion'=>self::suggestion($store,$owner,$field,$label,$value),
                 'clock'=>self::input($field,$label,$value,'time'),
                 'positive','number'=>self::input($field,$label,$value,'number','min="'.($type==='positive'?1:0).'"'),
@@ -878,6 +880,11 @@ final class Views
         }
         echo '</div><div class="actions editor-actions"><button class="primary" type="submit">'.self::th('save_record').'</button>'.
             '<output aria-live="polite" class="save-status">'.($auto ? self::th('edits_save_automatically') : '').'</output></div></form>';
+    }
+
+    private static function durationLabel(int|string $minutes): string
+    {
+        return $minutes === '' ? '' : sprintf('%d:%02d',intdiv((int)$minutes,60),(int)$minutes % 60);
     }
 
     private static function deliveryPickups(Store $store,string $owner,array $prefs,array $payload): void
@@ -931,7 +938,9 @@ final class Views
         $monday = self::today($prefs)->modify('monday this week');
         $rows = $store->run("SELECT payload FROM records WHERE owner=? AND kind IN ('income_entries','delivery_shifts')
             AND json_type(payload,'$.doordash_pay') = 'object'
-            AND deleted_at IS NULL AND starts >= ? AND starts < ?",
+            AND deleted_at IS NULL
+            AND COALESCE(NULLIF(substr(json_extract(payload,'$.shift_end'),1,10),''),starts) >= ?
+            AND COALESCE(NULLIF(substr(json_extract(payload,'$.shift_end'),1,10),''),starts) < ?",
             [$owner,$monday->format('Y-m-d'),$monday->modify('+7 days')->format('Y-m-d')]);
         $totals = [];
         foreach ($rows as $row) {

@@ -6,8 +6,9 @@ return [
     'messages' => [
         'delivery_rideshare' => 'Repartos y viajes compartidos',
         'delivery_shift' => 'Turno de reparto',
-        'delivery_active_minutes' => 'Tiempo activo (minutos)',
-        'delivery_dash_minutes' => 'Duración del turno (minutos)',
+        'delivery_active_minutes' => 'Tiempo activo (horas:minutos)',
+        'delivery_dash_minutes' => 'Duración del turno (horas:minutos)',
+        'delivery_duration_format' => 'Introduce el tiempo activo en horas y minutos, por ejemplo, 2:15.',
         'delivery_offers' => 'Ofertas',
         'delivery_count' => 'Entregas',
         'delivery_pickup' => 'Lugar de recogida',

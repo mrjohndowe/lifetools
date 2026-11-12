@@ -244,7 +244,9 @@ function bindEditor(form) {
     if (dash) {
         const updateDashTime = () => {
             const minutes = (Date.parse(end.value + 'Z') - Date.parse(start.value + 'Z')) / 60000;
-            dash.value = minutes >= 0 ? String(minutes) : '';
+            dash.value = minutes >= 0
+                ? Math.floor(minutes / 60) + ':' + String(minutes % 60).padStart(2, '0')
+                : '';
         };
         start.addEventListener('input', updateDashTime);
         end.addEventListener('input', updateDashTime);

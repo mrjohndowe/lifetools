@@ -7,8 +7,9 @@ const LT_LANGUAGES = ['en'=>'English','es'=>'Español'];
 const LT_MESSAGES = [
     'delivery_rideshare' => 'Deliveries/Ride Share',
     'delivery_shift' => 'Delivery shift',
-    'delivery_active_minutes' => 'Active time (minutes)',
-    'delivery_dash_minutes' => 'Dash time (minutes)',
+    'delivery_active_minutes' => 'Active time (hours:minutes)',
+    'delivery_dash_minutes' => 'Dash time (hours:minutes)',
+    'delivery_duration_format' => 'Enter active time as hours and minutes, such as 2:15.',
     'delivery_offers' => 'Offers',
     'delivery_count' => 'Deliveries',
     'delivery_pickup' => 'Pickup location',

@@ -58,7 +58,7 @@ final class Views
             '<title>'.self::th('page_title',['title'=>$title]).'</title><link rel="stylesheet" href="assets/style.css?v=star-buttons">'.
             '<script type="application/json" id="lifetools-language">'.
             json_encode($browserLanguage,JSON_THROW_ON_ERROR | JSON_HEX_TAG | JSON_UNESCAPED_UNICODE).
-            '</script><script src="assets/app.js?v=delivery-duration-label" defer></script></head><body>';
+            '</script><script src="assets/app.js?v=delivery-clock" defer></script></head><body>';
     }
 
     public static function error(string $message): void
@@ -475,7 +475,7 @@ final class Views
         $labels = [];
         foreach ($store->run("SELECT id,kind,title FROM records WHERE owner=? AND deleted_at IS NULL AND kind IN ($slots)
             ORDER BY title LIMIT 1000",[$owner,...$kinds]) as $row) {
-            $labels[$row['id']] = count($kinds) > 1 ? $row['title'].' · '.Catalog::label($row['kind']) : $row['title'];
+            $labels[$row['id']] = count($kinds) > 1 ? $row['title'].'Line:478 · '.Catalog::label($row['kind']) : $row['title'];
         }
         foreach ($selected as $id) {
             if (!isset($labels[$id])) {
@@ -509,6 +509,7 @@ final class Views
         $private = in_array($kind,['journal_entries','intimacy_events','daily_logs'],true);
         $trash = ($_GET['trash'] ?? '') === '1';
         $filter = $private ? $_POST : $_GET;
+        $showAllIncomeEntries = $kind === 'income_entries' && !$trash && ($_GET['all_entries'] ?? '') === '1';
         $page = max(1,min(10000,(int)($filter['p'] ?? 1)));
         $take = 30;
         $offset = ($page-1)*$take;
@@ -519,6 +520,13 @@ final class Views
         $kindFilter = $kind === 'income_entries' ? "r.kind IN (?,'delivery_shifts')" : 'r.kind=?';
         $where = 'r.owner=? AND '.$kindFilter.' AND r.deleted_at IS '.($trash ? 'NOT NULL' : 'NULL');
         $params = [$owner,$kind];
+        if ($kind === 'income_entries' && !$trash && !$showAllIncomeEntries) {
+            $weekStart = self::today($prefs)->modify('monday this week');
+            $where .= " AND COALESCE(NULLIF(substr(json_extract(r.payload,'$.shift_end'),1,10),''),r.starts)>=?
+                AND COALESCE(NULLIF(substr(json_extract(r.payload,'$.shift_end'),1,10),''),r.starts)<?";
+            $params[] = $weekStart->format('Y-m-d');
+            $params[] = $weekStart->modify('+7 days')->format('Y-m-d');
+        }
         if ($q !== '' && !$private) {
             $where .= ' AND instr(r.search,?)>0';
             $params[] = mb_strtolower($q);
@@ -562,6 +570,7 @@ final class Views
             $timeline=>'r.starts,r.id',
             in_array($kind,['list_items','playlist_items'],true)=>"CAST(json_extract(r.payload,'$.position') AS INTEGER),r.id",
             $named=>'r.title COLLATE NOCASE,r.id',
+            in_array($kind,['income_entries','delivery_shifts'],true)=>"COALESCE(NULLIF(json_extract(r.payload,'$.shift_end'),''),NULLIF(r.starts,'')) ASC NULLS LAST,r.id",
             $private=>'r.starts DESC,r.id',
             default=>'r.updated_at DESC,r.id',
         };
@@ -591,11 +600,26 @@ final class Views
             array_pop($records);
         }
         $route = ['view'=>'module','kind'=>$kind]+($trash ? ['trash'=>'1'] : []);
+        $incomeToggle = '';
+        if ($kind === 'income_entries' && !$trash) {
+            $toggleParams = $_GET;
+            unset($toggleParams['p']);
+            if ($showAllIncomeEntries) {
+                unset($toggleParams['all_entries']);
+            } else {
+                $toggleParams['all_entries'] = '1';
+            }
+            $incomeToggle = self::button(
+                ltText($showAllIncomeEntries ? 'show_current_week' : 'show_other_entries'),
+                ['view'=>'module','kind'=>$kind]+$toggleParams
+            );
+        }
         $module = $timeline ? ltText('timeline') : Catalog::label($kind);
         self::heading(mb_strtoupper(ltOption($group)),
             $trash ? ltText('trash_module',['module'=>$module]) : $module,
             $timeline ? ltText('a_chronological_record_of_your_plans') : ltText('records_in_your_private_workspace'),
             self::button($trash ? ltText('back_to_records') : ltText('trash'),['view'=>'module','kind'=>$kind]+($trash ? [] : ['trash'=>'1'])).
+            $incomeToggle.
             (!$trash ? self::button(ltText('add_record'),['view'=>'record','kind'=>$kind],true) : '').
             ($kind === 'work_order_deliveries' ? self::button(ltText('open_delivery_income'),['view'=>'module','kind'=>'income_entries']) : ''));
         self::tabs($group,$kind);
@@ -607,7 +631,8 @@ final class Views
             self::editor($store,$owner,'delivery_shifts',$prefs,inlineDelivery:true);
         }
         echo '<form class="panel filters" method="'.($private ? 'post' : 'get').'" action="'.self::href($private ? $route : []).'">'.
-            ($private ? self::csrf() : self::hidden('view','module').self::hidden('kind',$kind).($trash ? self::hidden('trash','1') : '')).
+            ($private ? self::csrf() : self::hidden('view','module').self::hidden('kind',$kind).($trash ? self::hidden('trash','1') : '').
+                ($showAllIncomeEntries ? self::hidden('all_entries','1') : '')).
             self::input('q',$private ? ltText('search_private_entries') : ltText('search_this_module'),$q,'search');
         foreach ($facets as $field=>[$type,$label]) {
             echo $type==='select' ? self::select($field,$label,self::options($fields[$field][2],$defaults[$field][2]),$filter[$field] ?? '')
@@ -664,12 +689,26 @@ final class Views
             if (($fields[$labelField][0] ?? '') === 'select' && in_array($label,$defaults[$labelField][2],true)) {
                 $label = ltOption($label);
             }
+            $details = [self::dateLabel(!empty($p['shift_end']) ? substr($p['shift_end'],0,10) : $row['starts'],$prefs),
+                $label,$p['tags'] ?? ''];
+            foreach (['doordash_pay'=>'delivery_pay','customer_tips'=>'delivery_tips'] as $field=>$caption) {
+                if (isset($p[$field]['minor'])) {
+                    $details[] = ltText($caption).' '.$p[$field]['currency'].' '.Catalog::decimal($p[$field]);
+                }
+            }
+            if (isset($p['doordash_pay']['minor'],$p['customer_tips']['minor']) &&
+                $p['doordash_pay']['currency'] === $p['customer_tips']['currency'] &&
+                $p['doordash_pay']['scale'] === $p['customer_tips']['scale']) {
+                $pay = $p['doordash_pay'];
+                $tips = $p['customer_tips'];
+                $details[] = ltText('delivery_total').' '.$pay['currency'].' '.
+                    Catalog::decimal(['minor'=>$pay['minor'] + $tips['minor'],'scale'=>$pay['scale']]);
+            }
             echo '<article class="panel record-row"><div class="record-icon">'.self::icon($group).'</div><div class="row-content"><a class="row-title" href="'.
                 self::href(['view'=>'record','kind'=>$row['kind'],'id'=>$row['id']]+($trash ? ['trash'=>'1'] : [])).'">'.self::highlight($row['title'],$q).
-                '</a><small>'.self::h(implode(' · ',array_filter([self::dateLabel(
-                    !empty($p['shift_end']) ? substr($p['shift_end'],0,10) : $row['starts'],$prefs),$label,$p['tags'] ?? '']))).'</small></div>';
+                '</a><small>'.self::h(implode(' · ',array_filter($details))).'</small></div>';
             if ($timeline) {
-                echo '<span class="pill">'.(substr($local,0,10)<$today ? self::th('past') : self::th('upcoming')).' · '.self::h(ltOption($p['status'] ?? '')).'</span>';
+                echo '<span class="pill">'.(substr($local,0,10)<$today ? self::th('past') : self::th('upcoming')).' Line:678 · '.self::h(ltOption($p['status'] ?? '')).'</span>';
             }
             if (!empty($p['last_four'])) {
                 echo '<span class="pill">•••• '.self::h($p['last_four']).'</span>';
@@ -729,7 +768,7 @@ final class Views
         if ($kind==='attachments' && $row) {
             echo '<section class="panel widget">'.self::button(ltText('open_file'),['file'=>$id]).
                 (str_starts_with($p['mime'],'image/') ? '<img class="preview" alt="'.self::th('uploaded_image').'" src="'.self::href(['file'=>$id]).'">' : '').
-                '<p>'.self::h($p['mime']).' · '.self::th('size_bytes',['size'=>$p['size']]).'</p></section>';
+                '<p>'.self::h($p['mime']).' Line:738 · '.self::th('size_bytes',['size'=>$p['size']]).'</p></section>';
         }
         if ($row && in_array($kind,['journal_entries','daily_logs'],true)) {
             $body = $store->privateValue($row,'content');
@@ -758,7 +797,7 @@ final class Views
             echo '<section class="panel widget"><h2>'.self::th('linked_records').'</h2>';
             foreach ($related as $link) {
                 echo '<a class="mini-row" href="'.self::href(['view'=>'record','kind'=>$link['kind'],'id'=>$link['id']]).'">'.
-                    self::h($link['title']).'<small>'.self::h(Catalog::label($link['kind']).' · '.self::dateLabel($link['starts'],$prefs)).'</small></a>';
+                    self::h($link['title']).'<small>'.self::h(Catalog::label($link['kind']).' Line:767 · '.self::dateLabel($link['starts'],$prefs)).'</small></a>';
             }
             if (!$related) {
                 echo '<p>'.self::th('no_records_link_here_yet').'</p>';
@@ -868,7 +907,11 @@ final class Views
                 'zone'=>self::timeZones($value),
                 'date','month','email','url'=>self::input($field,$label,$value,$type),
                 'datetime'=>self::input($field,$label,$value,'datetime-local'),
-                'shift-time'=>self::input($field,$label,$value,'datetime-local',$kind === 'delivery_shifts' ? 'required' : ''),
+                'shift-time'=>($prefs['delivery_clock'] ?? '') === '24'
+                    ? self::input($field,$label,str_replace('T',' ',$value),'text',
+                        'placeholder="YYYY-MM-DD HH:MM" pattern="[0-9]{4}-[0-9]{2}-[0-9]{2} ([01][0-9]|2[0-3]):[0-5][0-9]" '.
+                        ($kind === 'delivery_shifts' ? 'required' : ''))
+                    : self::input($field,$label,$value,'datetime-local',$kind === 'delivery_shifts' ? 'required' : ''),
                 'duration'=>self::input($field,$label,self::durationLabel($value),'text',
                     'placeholder="1 hrs 34 mins" pattern="[0-9]+(:[0-5][0-9]| hrs [0-5]?[0-9] mins)?"'),
                 'computed'=>self::input($field,$label,self::durationLabel($value),'text','readonly'),
@@ -973,7 +1016,7 @@ final class Views
         echo '<h2>'.self::th('delivery_week').'</h2><p>'.self::h($monday->format($prefs['format']).' – '.
             $monday->modify('+6 days')->format($prefs['format'])).'</p><div class="panel business-summary">';
         foreach ($values as $label=>$amounts) {
-            echo '<div><strong>'.self::th($label).'</strong><span>'.self::h(implode(' · ',$amounts)).'</span></div>';
+            echo '<div><strong>'.self::th($label).'</strong><span>'.self::h(implode(' Line:986 · ',$amounts)).'</span></div>';
         }
         echo '</div>';
     }
@@ -992,7 +1035,7 @@ final class Views
         $low = $store->run("SELECT COUNT(*) FROM records WHERE owner=? AND kind='business_inventory' AND deleted_at IS NULL
             AND CAST(json_extract(payload,'$.quantity') AS INTEGER)<=CAST(json_extract(payload,'$.threshold') AS INTEGER)",[$owner])->fetchColumn();
         echo '<div class="panel business-summary"><div><strong>'.self::th('paid_this_month').'</strong><span>'.
-            self::h($totals ? implode(' · ',array_map(static fn($a)=>$a['currency'].' '.Catalog::decimal($a),$totals)) : '—').
+            self::h($totals ? implode(' line: 1005 · ',array_map(static fn($a)=>$a['currency'].' '.Catalog::decimal($a),$totals)) : '—').
             '</span></div><div><strong>'.self::th('outstanding_work').'</strong><span>'.self::h($open).
             '</span></div><div><strong>'.self::th('low_stock_items').'</strong><span>'.self::h($low).'</span></div></div>';
     }
@@ -1051,7 +1094,7 @@ final class Views
                     $p['_private'] ?? []);
                 echo '<article class="panel record-row"><div class="row-content"><a class="row-title" href="'.
                     self::href(['view'=>'record','kind'=>$row['kind'],'id'=>$row['id']]).'">'.self::h($row['title']).
-                    '</a><small>'.self::h(implode(' · ',array_filter([ltOption($p['subtype'] ?? ''),$p['expiry'],implode(', ',$access)]))).'</small></div>'.
+                    '</a><small>'.self::h(implode(' Line:1064 · ',array_filter([ltOption($p['subtype'] ?? ''),$p['expiry'],implode(', ',$access)]))).'</small></div>'.
                     '<span class="pill">'.self::h(!empty($p['last_four']) ? '•••• '.$p['last_four'] : ltText('no_card_digits')).'</span></article>';
             }
         }
@@ -1065,7 +1108,10 @@ final class Views
             self::csrf().self::hidden('action','settings').self::hidden('operation','preferences').'<div class="form-grid">'.
             self::select('theme',ltText('appearance'),self::options(['system','light','dark']),$p['theme'],false).self::timeZones($p['zone']).
             self::input('currency',ltText('currency'),$p['currency'],'text','required pattern="[A-Z]{3}"').
-            self::select('format',ltText('date_format'),self::options(['Y-m-d','m/d/Y','d/m/Y']),$p['format'],false);
+            self::select('format',ltText('date_format'),self::options(['Y-m-d','m/d/Y','d/m/Y']),$p['format'],false).
+            self::select('delivery_clock',ltText('delivery_clock'),[
+                'browser'=>ltText('delivery_clock_browser'),'24'=>ltText('delivery_clock_24'),
+            ],$p['delivery_clock'] ?? 'browser',false);
         foreach (['relationships'=>ltText('additional_contact_relationships'),'account_types'=>ltText('additional_account_types'),
             'intimacy_types'=>ltText('additional_intimacy_event_types'),'intimacy_questions'=>ltText('additional_private_questionnaire_prompts')] as $key=>$label) {
             echo self::area($key,$label.ltText('one_per_line'),$p[$key] ?? '');
@@ -1114,4 +1160,3 @@ final class Views
             '<div class="actions"><button>'.self::th('create_user').'</button></div></form></section>';
     }
 }
-

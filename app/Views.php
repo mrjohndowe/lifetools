@@ -58,7 +58,7 @@ final class Views
             '<title>'.self::th('page_title',['title'=>$title]).'</title><link rel="stylesheet" href="assets/style.css?v=star-buttons">'.
             '<script type="application/json" id="lifetools-language">'.
             json_encode($browserLanguage,JSON_THROW_ON_ERROR | JSON_HEX_TAG | JSON_UNESCAPED_UNICODE).
-            '</script><script src="assets/app.js?v=delivery-clock" defer></script></head><body>';
+            '</script><script src="assets/app.js?v=delivery-clock-24" defer></script></head><body>';
     }
 
     public static function error(string $message): void
@@ -907,11 +907,9 @@ final class Views
                 'zone'=>self::timeZones($value),
                 'date','month','email','url'=>self::input($field,$label,$value,$type),
                 'datetime'=>self::input($field,$label,$value,'datetime-local'),
-                'shift-time'=>($prefs['delivery_clock'] ?? '') === '24'
-                    ? self::input($field,$label,str_replace('T',' ',$value),'text',
-                        'placeholder="YYYY-MM-DD HH:MM" pattern="[0-9]{4}-[0-9]{2}-[0-9]{2} ([01][0-9]|2[0-3]):[0-5][0-9]" '.
-                        ($kind === 'delivery_shifts' ? 'required' : ''))
-                    : self::input($field,$label,$value,'datetime-local',$kind === 'delivery_shifts' ? 'required' : ''),
+                'shift-time'=>self::input($field,$label,$value,'datetime-local',
+                    ($kind === 'delivery_shifts' ? 'required ' : '').
+                    (($prefs['delivery_clock'] ?? '') === '24' ? 'data-clock-24' : '')),
                 'duration'=>self::input($field,$label,self::durationLabel($value),'text',
                     'placeholder="1 hrs 34 mins" pattern="[0-9]+(:[0-5][0-9]| hrs [0-5]?[0-9] mins)?"'),
                 'computed'=>self::input($field,$label,self::durationLabel($value),'text','readonly'),

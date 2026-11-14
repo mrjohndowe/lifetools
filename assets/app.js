@@ -242,8 +242,44 @@ function bindEditor(form) {
     }
     const { shift_start: start, shift_end: end, dash_minutes: dash } = form.elements;
     if (dash) {
+        for (const input of [start, end]) {
+            if (!input.hasAttribute('data-clock-24')) continue;
+            const [day = '', clock = ''] = input.value.split('T');
+            const date = document.createElement('input');
+            date.type = 'date';
+            date.value = day;
+            date.required = input.required;
+            const time = document.createElement('input');
+            time.type = 'text';
+            time.placeholder = 'HH:MM';
+            time.pattern = '(?:[01][0-9]|2[0-3]):[0-5][0-9]';
+            time.maxLength = 5;
+            time.value = clock;
+            time.required = input.required;
+            const label = input.previousElementSibling.textContent;
+            date.setAttribute('aria-label', label + ' · ' + text('date'));
+            time.setAttribute('aria-label', label + ' · ' + text('delivery_clock_24'));
+            input.type = 'hidden';
+            input.value = day && clock ? day + 'T' + clock : '';
+            input.after(date, time);
+            const sync = () => {
+                date.required = input.required || time.value !== '';
+                time.required = input.required || date.value !== '';
+                input.value = date.value && time.validity.valid && time.value ? date.value + 'T' + time.value : '';
+                updateDashTime();
+            };
+            date.addEventListener('input', sync);
+            time.addEventListener('input', sync);
+        }
+        const active = form.elements.active_minutes;
+        active.addEventListener('change', () => {
+            if (!/^\d+$/.test(active.value)) return;
+            const minutes = Number(active.value);
+            if (minutes > 1000000000) return;
+            active.value = text('delivery_duration_label', { hours: Math.floor(minutes / 60), minutes: minutes % 60 });
+        });
         const updateDashTime = () => {
-            const minutes = (Date.parse(end.value + 'Z') - Date.parse(start.value + 'Z')) / 60000;
+            const minutes = (Date.parse(end.value.replace(' ', 'T') + 'Z') - Date.parse(start.value.replace(' ', 'T') + 'Z')) / 60000;
             dash.value = minutes >= 0
                 ? text('delivery_duration_label', { hours: Math.floor(minutes / 60), minutes: minutes % 60 })
                 : '';

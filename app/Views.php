@@ -58,7 +58,7 @@ final class Views
             '<title>'.self::th('page_title',['title'=>$title]).'</title><link rel="stylesheet" href="assets/style.css?v=star-buttons">'.
             '<script type="application/json" id="lifetools-language">'.
             json_encode($browserLanguage,JSON_THROW_ON_ERROR | JSON_HEX_TAG | JSON_UNESCAPED_UNICODE).
-            '</script><script src="assets/app.js?v=delivery-clock-24" defer></script></head><body>';
+            '</script><script src="assets/app.js?v=record-autosave" defer></script></head><body>';
     }
 
     public static function error(string $message): void
@@ -818,7 +818,7 @@ final class Views
         $p = $row ? Store::payload($row) : [];
         $fields = Catalog::fields($kind,$prefs);
         $defaults = Catalog::fields($kind);
-        $auto = $row && !in_array($kind,['attachments','accounts','bank_accounts','cards','personal_profile','vehicles'],true);
+        $auto = !$quick;
         if ($quick) {
             $keys = match ($kind) {
                 'events'=>['category','all_day','start','end','zone'],

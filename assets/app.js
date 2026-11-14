@@ -301,12 +301,15 @@ function bindEditor(form) {
     if (!mode) return;
     const status = form.querySelector('.save-status');
     const saveButton = form.querySelector('button[type="submit"]');
-    const actions = mode === 'auto' ? [...document.querySelectorAll('[data-record-action]')] : [];
+    const actions = mode === 'auto' && form.elements.id.value
+        ? [...document.querySelectorAll('[data-record-action]')].filter(action => action.elements.id.value === form.elements.id.value)
+        : [];
     let current = 0;
     let acknowledged = 0;
     let running = false;
     let timer;
     let pending;
+    const newRecord = !form.elements.id.value;
     function disableActions(disabled) {
         actions.forEach((action) => action.querySelector('button').disabled = disabled);
     }
@@ -334,6 +337,12 @@ function bindEditor(form) {
             actions.forEach((action) => action.elements.revision.value = result.revision);
             acknowledged = submitted;
             status.textContent = text('saved_to_sqlite');
+            if (mode === 'auto' && newRecord) {
+                const link = document.createElement('a');
+                link.href = 'index.php?' + new URLSearchParams({ view: 'record', kind: form.elements.kind.value, id: result.id });
+                link.textContent = text('open_record');
+                status.append(' ', link);
+            }
             if (mode === 'quick' && current === submitted) {
                 const link = document.createElement('a');
                 link.href = 'index.php?' + new URLSearchParams({ view: 'record', kind: form.elements.kind.value, id: result.id });
